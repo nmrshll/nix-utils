@@ -118,13 +118,12 @@
         '';
 
         docker-build = pkgs.writeScriptBin "mkdocker" ''nix build .#docker; docker load < result;'';
-
-
       };
 
     in
     {
-      packages = packages;
+      # packages = packages;
+      inherit packages binaries;
     }
   );
 }
