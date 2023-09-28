@@ -16,6 +16,7 @@
         wdname = "${packages.wdname}/bin/wdname";
         respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
         tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
+        configure-vscode = "${packages.configure-vscode}/bin/configure-vscode";
       };
 
       packages = with pkgs; with binaries; {
