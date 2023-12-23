@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     utils.url = "github:numtide/flake-utils";
   };
 
@@ -32,6 +32,7 @@
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTC\" |= \"$(which rustc)\"" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTFMT\" |= \"$(which rustfmt)\"" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"SQLX_OFFLINE\" |= 1" \
+                  | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTFLAGS\" |= \"$(echo $RUSTFLAGS)\"" \
                   | ${jq} ".\"rust-analyzer.server.path\" |= \"$(which rust-analyzer)\""
               `;
               if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
@@ -39,7 +40,49 @@
               fi
           fi
         '';
-        fix-fmt = pkgs.writeScriptBin "ffix" ''
+        autorebase = pkgs.writeScriptBin "autorebase" ''
+          #!/usr/bin/env bash
+          set -euxo pipefail
+
+          # This script will automatically rebase your branch on main, by doing:
+          # - backup your current branch
+          # - pull latest changes on main
+          # - squash all of your branch into one commit
+          # - rebase your branch on top of the latest main
+          # After running it:
+          # - if you have conflicts:
+          #     - fix them in the files, then in git, stage each fixed file
+          #     - once there are no more conflicts (and all files are staged)
+          #     - run `git rebase --continue`
+          # - Now, your branch should have one more commit than main
+
+          # check we're not on main
+          bname=`git rev-parse --abbrev-ref HEAD`
+          if [[ "''${bname}" =~ "main" ]]; then echo "[ERROR] Branch can't be 'main'" && exit 1; fi
+          # check everything committed
+          if [ -n "$(git status --porcelain)" ]; then
+              echo "[ERROR] There are uncommitted changes in working tree. Commit, then run this script again"
+              exit 1
+          fi
+
+          backup_branch="''${bname}_backup_$(date +%y%m%d%H%M)"
+          git checkout -b "''${backup_branch}"
+
+          # update main
+          git checkout main
+          git pull
+          git checkout ''${bname}
+
+          last_common=`git merge-base ''${bname} main`
+
+          # squash all changes of my branch
+          git reset --soft ''${last_common}
+          git commit --all -m "squash all ''${bname}"
+
+          git rebase main
+        '';
+
+        fix-fmt = pkgs.writeScriptBin "fix-fmt" ''
           cargo fmt --all --
           cargo clippy --fix
         '';
@@ -47,9 +90,9 @@
           cargo fmt --all -- --check
           cargo clippy -- -D warnings
         '';
-        reload-nix = pkgs.writeScriptBin "reload-nix" ''
-          nix flake lock --update-input scriptUtils && direnv allow
-        '';
+        # reload-nix = pkgs.writeScriptBin "reload-nix" ''
+        #   nix flake lock --update-input scriptUtils && direnv allow
+        # '';
         dotenv = pkgs.writeScriptBin "dotenv" ''#!/usr/bin/env bash
           wd=`${wd}`;
           if [ -f "$wd/.env" ]; then 
@@ -64,11 +107,26 @@
 
 
         sql-export = pkgs.writeScriptBin "sqlex" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
-        await_postgres_up = pkgs.writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
+        # await_postgres_up = pkgs.writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
+        #   PORT="''${1:-''${POSTGRES_PORT:-5432}}"
+        #   while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
+        # '';
+        # await_postgres_migrated = pkgs.writeScriptBin "await_postgres" ''#!/usr/bin/env bash
+        #   await_postgres
+        #   while test ! "sqlx migrate info | grep -q 'pending'"; do
+        #     echo "waiting on postgres migrations..."; sleep 0.3;
+        #   done
+        # '';
+        await_postgres = pkgs.writeScriptBin "await_postgres" ''#!/usr/bin/env bash
           PORT="''${1:-''${POSTGRES_PORT:-5432}}"
-          while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
+          # while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
+
+          # TEST STRING NOT EMPTY i.e. while not contains "accepting"
+          while ! [ -n "`${pkgs.postgresql_15}/bin/pg_isready -h 0.0.0.0 -p $PORT | grep "accepting"`" ]; do
+            echo "waiting on postgres (port $PORT)..."; sleep 0.3;
+          done
         '';
-        await_postgres_migrated = pkgs.writeScriptBin "await_postgres" ''#!/usr/bin/env bash
+        await_postgres_migrated = pkgs.writeScriptBin "await_postgres_migrated" ''#!/usr/bin/env bash
           await_postgres
           while test ! "sqlx migrate info | grep -q 'pending'"; do
             echo "waiting on postgres migrations..."; sleep 0.3;
@@ -122,7 +180,6 @@
 
     in
     {
-      # packages = packages;
       inherit packages binaries;
     }
   );
