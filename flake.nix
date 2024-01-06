@@ -94,13 +94,13 @@
         #   nix flake lock --update-input scriptUtils && direnv allow
         # '';
         dotenv = pkgs.writeScriptBin "dotenv" ''#!/usr/bin/env bash
-          wd=`${wd}`;
-          if [ -f "$wd/.env" ]; then 
-              source "$wd/.env"; 
+          set -euxo pipefail
+          if [ -f "`${wd}`/.env" ]; then 
+              source "`${wd}`/.env"; 
               case "$(uname -s)" in
                   Linux*)     echo "NOT SUPPORTED YET: sourcing .env on Linux" ;; # TODO
                   Darwin*)    
-                    export `cat "$wd/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
+                    export `cat "`${wd}`/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
               esac
           fi
         '';
