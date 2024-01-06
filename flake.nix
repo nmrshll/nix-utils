@@ -33,7 +33,13 @@
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTFMT\" |= \"$(which rustfmt)\"" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"SQLX_OFFLINE\" |= 1" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTFLAGS\" |= \"$(echo $RUSTFLAGS)\"" \
-                  | ${jq} ".\"rust-analyzer.server.path\" |= \"$(which rust-analyzer)\""
+                  | ${jq} ".\"rust-analyzer.server.path\" |= \"$(which rust-analyzer)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.command\" |= \"$(which cargo)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"CARGO\" |= \"$(which cargo)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"RUSTC\" |= \"$(which rustc)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"RUSTFMT\" |= \"$(which rustfmt)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"SQLX_OFFLINE\" |= 1" \
+                  | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"RUSTFLAGS\" |= \"$(echo $RUSTFLAGS)\""
               `;
               if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
                   echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
