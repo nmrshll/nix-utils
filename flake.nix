@@ -17,6 +17,7 @@
         respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
         tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
         configure-vscode = "${packages.configure-vscode}/bin/configure-vscode";
+        vscargo = "${packages.vscargo}/bin/vscargo";
         dotenv = "${packages.dotenv}/bin/dotenv";
       };
 
@@ -35,7 +36,7 @@
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"SQLX_OFFLINE\" |= 1" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"RUSTFLAGS\" |= \"$(echo $RUSTFLAGS)\"" \
                   | ${jq} ".\"rust-analyzer.server.path\" |= \"$(which rust-analyzer)\"" \
-                  | ${jq} ".\"rust-analyzer.runnables.command\" |= \"${dotenv} && $(which cargo)\"" \
+                  | ${jq} ".\"rust-analyzer.runnables.command\" |= \"${vscargo}\"" \
                   | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"CARGO\" |= \"$(which cargo)\"" \
                   | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"RUSTC\" |= \"$(which rustc)\"" \
                   | ${jq} ".\"rust-analyzer.runnables.extraEnv\".\"RUSTFMT\" |= \"$(which rustfmt)\"" \
@@ -47,9 +48,9 @@
               fi
           fi
         '';
-        # vscargo = writeScriptBin "vscargo" ''
-        #   ${dotenv} && cargo "$@"
-        # '';
+        vscargo = writeScriptBin "vscargo" ''
+          ${dotenv} && $CARGO "$@"
+        '';
         autorebase = writeScriptBin "autorebase" ''
           #!/usr/bin/env bash
           set -euxo pipefail
