@@ -103,7 +103,7 @@
           set -euxo pipefail
           WD=`${wd}`
           if [ -f "$WD/.env" ]; then 
-              source "`$WD`/.env"; 
+              source "$WD/.env"; 
               case "$(uname -s)" in
                   Linux*)     echo "NOT SUPPORTED YET: sourcing .env on Linux" ;; # TODO
                   Darwin*)    
