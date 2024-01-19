@@ -20,10 +20,10 @@
       };
 
       packages = with pkgs; with binaries; {
-        wd = pkgs.writeScriptBin "wd" ''git rev-parse --show-toplevel'';
-        wdname = pkgs.writeScriptBin "wdname" ''basename `${wd}`'';
+        wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
+        wdname = writeScriptBin "wdname" ''basename `${wd}`'';
 
-        configure-vscode = pkgs.writeScriptBin "configure-vscode" ''
+        configure-vscode = writeScriptBin "configure-vscode" ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
@@ -46,7 +46,7 @@
               fi
           fi
         '';
-        autorebase = pkgs.writeScriptBin "autorebase" ''
+        autorebase = writeScriptBin "autorebase" ''
           #!/usr/bin/env bash
           set -euxo pipefail
 
@@ -88,42 +88,43 @@
           git rebase main
         '';
 
-        fix-fmt = pkgs.writeScriptBin "fix-fmt" ''
+        fix-fmt = writeScriptBin "fix-fmt" ''
           cargo fmt --all --
           cargo clippy --fix
         '';
-        check = pkgs.writeScriptBin "check" ''
+        check = writeScriptBin "check" ''
           cargo fmt --all -- --check
           cargo clippy -- -D warnings
         '';
-        # reload-nix = pkgs.writeScriptBin "reload-nix" ''
+        # reload-nix = writeScriptBin "reload-nix" ''
         #   nix flake lock --update-input scriptUtils && direnv allow
         # '';
-        dotenv = pkgs.writeScriptBin "dotenv" ''#!/usr/bin/env bash
+        dotenv = writeScriptBin "dotenv" ''#!/usr/bin/env bash
           set -euxo pipefail
-          if [ -f "`${wd}`/.env" ]; then 
-              source "`${wd}`/.env"; 
+          WD=`${wd}`
+          if [ -f "$WD/.env" ]; then 
+              source "`$WD`/.env"; 
               case "$(uname -s)" in
                   Linux*)     echo "NOT SUPPORTED YET: sourcing .env on Linux" ;; # TODO
                   Darwin*)    
-                    export `cat "`${wd}`/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
+                    export `cat "$WD/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
               esac
           fi
         '';
 
 
-        sql-export = pkgs.writeScriptBin "sqlex" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
-        # await_postgres_up = pkgs.writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
+        sql-export = writeScriptBin "sqlex" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
+        # await_postgres_up = writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
         #   PORT="''${1:-''${POSTGRES_PORT:-5432}}"
         #   while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
         # '';
-        # await_postgres_migrated = pkgs.writeScriptBin "await_postgres" ''#!/usr/bin/env bash
+        # await_postgres_migrated = writeScriptBin "await_postgres" ''#!/usr/bin/env bash
         #   await_postgres
         #   while test ! "sqlx migrate info | grep -q 'pending'"; do
         #     echo "waiting on postgres migrations..."; sleep 0.3;
         #   done
         # '';
-        await_postgres = pkgs.writeScriptBin "await_postgres" ''#!/usr/bin/env bash
+        await_postgres = writeScriptBin "await_postgres" ''#!/usr/bin/env bash
           PORT="''${1:-''${POSTGRES_PORT:-5432}}"
           # while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
 
@@ -132,13 +133,13 @@
             echo "waiting on postgres (port $PORT)..."; sleep 0.3;
           done
         '';
-        await_postgres_migrated = pkgs.writeScriptBin "await_postgres_migrated" ''#!/usr/bin/env bash
+        await_postgres_migrated = writeScriptBin "await_postgres_migrated" ''#!/usr/bin/env bash
           await_postgres
           while test ! "sqlx migrate info | grep -q 'pending'"; do
             echo "waiting on postgres migrations..."; sleep 0.3;
           done
         '';
-        await_server = pkgs.writeScriptBin "await_server" ''
+        await_server = writeScriptBin "await_server" ''
           if [ -n "$1" ] || [ -n "$SERVER_ORIGIN" ]; then
             SERVER_ORIGIN="''${1:-$SERVER_ORIGIN}"
           else
@@ -148,22 +149,22 @@
 
           while [[ ! `curl "$SERVER_ORIGIN/health/ping" 2>/dev/null` =~ "pong" ]]; do echo "waiting on server ($SERVER_ORIGIN)..."; sleep 0.3; done
         '';
-        down = pkgs.writeScriptBin "down" ''#!/usr/bin/env bash          
+        down = writeScriptBin "down" ''#!/usr/bin/env bash          
           docker-compose -f infra/docker-compose.yml down
           docker network ls --filter "type=custom" --filter="name=`${wdname}`" -q | xargs -r docker network rm
           docker ps --filter="name=`${wdname}`" -aq | xargs -r docker rm -f -v
         '';
-        logs = pkgs.writeScriptBin "logs" ''
+        logs = writeScriptBin "logs" ''
           docker-compose -f infra/docker-compose.yml logs -f "$1"
         '';
 
-        respawn_tmux = pkgs.writeScriptBin "respawn_tmux" ''#!/usr/bin/env bash
+        respawn_tmux = writeScriptBin "respawn_tmux" ''#!/usr/bin/env bash
           ${tmux} kill-session -t session 2>/dev/null
           ${tmux} new-session -d -s session
           ${tmux} set-option -g remain-on-exit on
           ${tmux} bind-key C-d kill-server # use Ctrl-b-d to kill all of tmux
         '';
-        tmux_cmd = pkgs.writeScriptBin "tmux_cmd" ''#!/usr/bin/env bash
+        tmux_cmd = writeScriptBin "tmux_cmd" ''#!/usr/bin/env bash
           SESSION="$1"
           shift; CMD="$@"
           if ${tmux} list-windows |grep $SESSION; 
@@ -171,8 +172,8 @@
               else ${tmux} new-window -n $SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER; 
           fi
         '';
-        tmux_attach = pkgs.writeScriptBin "tmuxa" ''${tmux} attach'';
-        mux = pkgs.writeScriptBin "mux" ''
+        tmux_attach = writeScriptBin "tmuxa" ''${tmux} attach'';
+        mux = writeScriptBin "mux" ''
           ${respawn_tmux};
           while [[ $# -gt 1 ]]; do
             window_name="$1"; cmd="$2"; shift 2
@@ -181,7 +182,7 @@
           ${tmux_attach}
         '';
 
-        docker-build = pkgs.writeScriptBin "mkdocker" ''nix build .#docker; docker load < result;'';
+        docker-build = writeScriptBin "mkdocker" ''nix build .#docker; docker load < result;'';
       };
 
     in
