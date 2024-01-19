@@ -47,7 +47,7 @@
           fi
         '';
         vscargo = writeScriptBin "vscargo" ''
-          ${packges.dotenv} && cargo "$@"
+          ${packages.dotenv} && cargo "$@"
         '';
         autorebase = writeScriptBin "autorebase" ''
           #!/usr/bin/env bash
