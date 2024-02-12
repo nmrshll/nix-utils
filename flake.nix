@@ -1,7 +1,10 @@
 {
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
-    utils.url = "github:numtide/flake-utils";
+    utils = {
+      url = "github:numtide/flake-utils";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
@@ -55,42 +58,51 @@
           #!/usr/bin/env bash
           set -euxo pipefail
 
-          # This script will automatically rebase your branch on main, by doing:
-          # - backup your current branch
-          # - pull latest changes on main
-          # - squash all of your branch into one commit
-          # - rebase your branch on top of the latest main
-          # After running it:
-          # - if you have conflicts:
-          #     - fix them in the files, then in git, stage each fixed file
-          #     - once there are no more conflicts (and all files are staged)
-          #     - run `git rebase --continue`
-          # - Now, your branch should have one more commit than main
+          # This script will automatically rebase your branch onto main, by doing:
+          #  - backup your current branch
+          #  - pull latest changes on main
+          #  - squash all of your branch into one commit
+          #  - rebase your branch on top of the latest main
+          # If you have conflicts after running it:
+          #  - for each file, fix conflicts, git-stage the file
+          #  - run `git rebase --continue`
+          #  - Now, your branch should have one more commit than main
+
+          REPO_PATH=$(git rev-parse --show-toplevel)
+          REMOTE_NAME=$(
+            NB_REMOTES=$(git -C "$REPO_PATH" remote | wc -l | tr -d '[:space:]')
+            if [ $NB_REMOTES -eq 1 ]; then
+              CURRENT_REMOTE=$(git -C "$REPO_PATH" remote | tr -d '[:space:]'); echo $CURRENT_REMOTE
+            else
+              >&2 echo "Error: no unique origin remote"; exit 1
+            fi;
+          );
+          MAIN_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
+          WORK_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
           # check we're not on main
-          bname=`git rev-parse --abbrev-ref HEAD`
-          if [[ "''${bname}" =~ "main" ]]; then echo "[ERROR] Branch can't be 'main'" && exit 1; fi
+          if [[ "''${WORK_BRANCH}" =~ "''${MAIN_BRANCH}" ]]; then echo "[ERROR] Branch can't be 'main'" && exit 1; fi
           # check everything committed
           if [ -n "$(git status --porcelain)" ]; then
               echo "[ERROR] There are uncommitted changes in working tree. Commit, then run this script again"
               exit 1
           fi
 
-          backup_branch="''${bname}_backup_$(date +%y%m%d%H%M)"
-          git checkout -b "''${backup_branch}"
+          # backup work branch
+          BACKUP_BRANCH="''${WORK_BRANCH}_backup_$(date +%y%m%d%H%M)"
+          git checkout -b "''${BACKUP_BRANCH}"
 
-          # update main
-          git checkout main
+          # update main branch
+          git checkout "''${MAIN_BRANCH}"
           git pull
-          git checkout ''${bname}
-
-          last_common=`git merge-base ''${bname} main`
+          git checkout "''${WORK_BRANCH}"
 
           # squash all changes of my branch
-          git reset --soft ''${last_common}
-          git commit --all -m "squash all ''${bname}"
+          LAST_COMMON_COMMIT=$(git merge-base ''${WORK_BRANCH} ''${MAIN_BRANCH})
+          git reset --soft ''${LAST_COMMON_COMMIT}
+          git commit --all -m "squash all ''${WORK_BRANCH}"
 
-          git rebase main
+          git rebase "''${MAIN_BRANCH}"
         '';
 
         fix-fmt = writeScriptBin "fix-fmt" ''
