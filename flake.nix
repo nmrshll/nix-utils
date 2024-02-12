@@ -74,7 +74,7 @@
             if [ $NB_REMOTES -eq 1 ]; then
               CURRENT_REMOTE=$(git -C "$REPO_PATH" remote | tr -d '[:space:]'); echo $CURRENT_REMOTE
             else
-              >&2 echo "Error: no unique origin remote"; exit 1
+              >&2 echo "[ERROR]: no unique origin remote"; exit 1
             fi;
           );
           MAIN_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
