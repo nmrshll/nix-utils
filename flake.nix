@@ -101,6 +101,10 @@
 
           git rebase "''${MAIN_BRANCH}"
         '';
+        git-unsee = writeScriptBin "git-unsee" ''
+          git add --intent-to-add "$@"
+          git update-index --assume-unchanged "$@"
+        '';
 
         fix-fmt = writeScriptBin "fix-fmt" ''
           cargo fmt --all --
