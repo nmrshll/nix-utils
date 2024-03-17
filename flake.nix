@@ -17,7 +17,6 @@
         respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
         tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
         configure-vscode = "${packages.configure-vscode}/bin/configure-vscode";
-        # vscargo = "${packages.vscargo}/bin/vscargo";
         dotenv = "${packages.dotenv}/bin/dotenv";
       };
 
@@ -129,18 +128,22 @@
               esac
           fi
         '';
+        setenv = writeScriptBin "setenv" ''
+          case "$1" in 
+            "local"*)       ln -sf "`${wd}`/infra/local.env" "`${wd}`/.env" ;;
+            "remote-dev"*)  ln -sf "`${wd}`/infra/remote-dev.env" "`${wd}`/.env" ;;
+            "uat"*)         ln -sf "`${wd}`/infra/uat.env" "`${wd}`/.env" ;;
+            "none"*)        rm "`${wd}`/.env" ;;
+            
+            *) echo "$1 is not a supported environment. Environments supported are [\"none\", \"local\", \"remote-dev\", \"uat\"]" >&2; exit 1
+          esac
+        '';
 
 
-        sql-export = writeScriptBin "sqlex" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
+        sql-migrate-and-export = writeScriptBin "migrate" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
         # await_postgres_up = writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
         #   PORT="''${1:-''${POSTGRES_PORT:-5432}}"
         #   while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
-        # '';
-        # await_postgres_migrated = writeScriptBin "await_postgres" ''#!/usr/bin/env bash
-        #   await_postgres
-        #   while test ! "sqlx migrate info | grep -q 'pending'"; do
-        #     echo "waiting on postgres migrations..."; sleep 0.3;
-        #   done
         # '';
         await_postgres = writeScriptBin "await_postgres" ''#!/usr/bin/env bash
           PORT="''${1:-''${POSTGRES_PORT:-5432}}"
