@@ -117,7 +117,6 @@
         #   nix flake lock --update-input scriptUtils && direnv allow
         # '';
         dotenv = writeScriptBin "dotenv" ''#!/usr/bin/env bash
-          set -euxo pipefail
           WD=`${wd}`
           if [ -f "$WD/.env" ]; then 
               source "$WD/.env"; 
