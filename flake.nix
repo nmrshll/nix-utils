@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
     utils.url = "github:numtide/flake-utils";
   };
 
@@ -168,7 +168,7 @@
             return 1
           fi
 
-          while [[ ! `curl "$SERVER_ORIGIN/health/ping" 2>/dev/null` =~ "pong" ]]; do echo "waiting on server ($SERVER_ORIGIN)..."; sleep 0.3; done
+          while [[ ! `curl "$SERVER_ORIGIN/health" 2>/dev/null` =~ "ok" ]]; do echo "waiting on server ($SERVER_ORIGIN)..."; sleep 0.3; done
         '';
         down = writeScriptBin "down" ''#!/usr/bin/env bash          
           docker-compose -f infra/docker-compose.yml down
