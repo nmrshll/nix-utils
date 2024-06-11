@@ -122,9 +122,8 @@
           if [ -f "$WD/.env" ]; then 
               source "$WD/.env"; 
               case "$(uname -s)" in
-                  Linux*)     echo "NOT SUPPORTED YET: sourcing .env on Linux" ;; # TODO
-                  Darwin*)    
-                    export `cat "$WD/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
+                  Linux*)     export $(grep -v '^#' .env | xargs) ;;
+                  Darwin*)    export `cat "$WD/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
               esac
           fi
         '';
