@@ -16,15 +16,22 @@
         wdname = "${packages.wdname}/bin/wdname";
         respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
         tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
-        configure-vscode = "${packages.configure-vscode}/bin/configure-vscode";
+        configure-vscode-rust = "${packages.configure-vscode}/bin/configure-vscode-rust";
+        configure-vscode-noir = "${packages.configure-vscode}/bin/configure-vscode-noir";
         dotenv = "${packages.dotenv}/bin/dotenv";
+      };
+
+      # TODO make configure-rust dependent on this
+      options = {
+        EDITOR = pkgs.lib.mkOption { type = pkgs.lib.types.string; default = null; };
+        rust.enable = pkgs.lib.mkOption { type = pkgs.lib.types.bool; default = false; };
       };
 
       packages = with pkgs; with binaries; {
         wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
         wdname = writeScriptBin "wdname" ''basename `${wd}`'';
 
-        configure-vscode = writeScriptBin "configure-vscode" ''
+        configure-vscode-rust = writeScriptBin "configure-vscode-rust" ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
@@ -47,9 +54,20 @@
               fi
           fi
         '';
-        # vscargo = writeScriptBin "vscargo" ''
-        #   (${dotenv} && $CARGO "$@")
-        # '';
+        configure-vscode-noir = writeShellScriptBin "configure-vscode-noir" ''
+              if [ `expr "$(which code)" : "/bin/code"` ]; then 
+              SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
+              ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
+              NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
+                  | ${jq} ".\"noir.nargoPath\".\"CARGO\" |= \"$(which nargo)\"" \
+              `;
+              if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
+                  echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
+              fi
+          fi
+        '';
+
+
         autorebase = writeScriptBin "autorebase" ''
           #!/usr/bin/env bash
           set -euxo pipefail
