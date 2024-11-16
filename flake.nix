@@ -4,7 +4,7 @@
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils }: with builtins;utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
 
@@ -16,8 +16,8 @@
         wdname = "${packages.wdname}/bin/wdname";
         respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
         tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
-        configure-vscode-rust = "${packages.configure-vscode}/bin/configure-vscode-rust";
-        configure-vscode-noir = "${packages.configure-vscode}/bin/configure-vscode-noir";
+        configure-vscode-rust = "${packages.configure-vscode.rust}/bin/configure-vscode-rust";
+        configure-vscode-noir = "${scripts.configure-vscode-noir}/bin/configure-vscode-noir";
         dotenv = "${packages.dotenv}/bin/dotenv";
       };
 
@@ -27,11 +27,26 @@
         rust.enable = pkgs.lib.mkOption { type = pkgs.lib.types.bool; default = false; };
       };
 
+
+      scripts = with binaries; pkgs.lib.mapAttrs (name: value: pkgs.writeShellScriptBin "${name}" ''${value}'') {
+        configure-vscode-noir = ''        
+          if [ `expr "$(which code)" : "/bin/code"` ]; then 
+              SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
+              ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
+              NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
+                  | ${jq} ".\"noir.nargoPath\" |= \"$(which nargo)\"" \
+              `;
+              if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
+                  echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
+              fi
+          fi'';
+      };
+
       packages = with pkgs; with binaries; {
         wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
         wdname = writeScriptBin "wdname" ''basename `${wd}`'';
 
-        configure-vscode-rust = writeScriptBin "configure-vscode-rust" ''
+        configure-vscode.rust = writeScriptBin "configure-vscode-rust" ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
@@ -55,7 +70,7 @@
           fi
         '';
         configure-vscode-noir = writeShellScriptBin "configure-vscode-noir" ''
-              if [ `expr "$(which code)" : "/bin/code"` ]; then 
+          if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
               NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
