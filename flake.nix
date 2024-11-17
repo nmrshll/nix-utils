@@ -35,7 +35,7 @@
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
               NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
                   | ${jq} ".\"noir.nargoPath\" |= \"$(which nargo)\"" \
-                  | ${jq} ".\"noir.enableLSP\" |= \"true\"" \
+                  | ${jq} ".\"noir.enableLSP\" |= true" \
               `;
               if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
                   echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
