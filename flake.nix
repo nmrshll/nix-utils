@@ -4,7 +4,7 @@
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }: with builtins;utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils }: with builtins; utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
 
@@ -96,7 +96,7 @@
         '';
       };
 
-      packages = with pkgs; with binaries; {
+      packages = with pkgs; with binaries; scripts // {
         wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
         wdname = writeScriptBin "wdname" ''basename `${wd}`'';
 
