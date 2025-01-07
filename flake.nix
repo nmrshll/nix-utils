@@ -27,7 +27,7 @@
         rust.enable = pkgs.lib.mkOption { type = pkgs.lib.types.bool; default = false; };
       };
 
-
+      # TODO expose mkScripts via lib
       scripts = with binaries; pkgs.lib.mapAttrs (name: value: pkgs.writeShellScriptBin "${name}" ''${value}'') {
         configure-vscode-noir = ''        
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
@@ -124,57 +124,7 @@
           fi
         '';
 
-        # TODO rm (moved to scripts)
-        # autorebase = writeScriptBin "autorebase" ''
-        #   #!/usr/bin/env bash
-        #   set -euxo pipefail
 
-        #   # This script will automatically rebase your branch onto main, by doing:
-        #   #  - backup your current branch
-        #   #  - pull latest changes on main
-        #   #  - squash all of your branch into one commit
-        #   #  - rebase your branch on top of the latest main
-        #   # If you have conflicts after running it:
-        #   #  - for each file, fix conflicts, git-stage the file
-        #   #  - run `git rebase --continue`
-        #   #  - Now, your branch should have one more commit than main
-
-        #   REPO_PATH=$(git rev-parse --show-toplevel)
-        #   REMOTE_NAME=$(
-        #     NB_REMOTES=$(git -C "$REPO_PATH" remote | wc -l | tr -d '[:space:]')
-        #     if [ $NB_REMOTES -eq 1 ]; then
-        #       CURRENT_REMOTE=$(git -C "$REPO_PATH" remote | tr -d '[:space:]'); echo $CURRENT_REMOTE
-        #     else
-        #       >&2 echo "[ERROR]: no unique origin remote"; exit 1
-        #     fi;
-        #   );
-        #   MAIN_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
-        #   WORK_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-
-        #   # check we're not on main
-        #   if [[ "''${WORK_BRANCH}" =~ "''${MAIN_BRANCH}" ]]; then echo "[ERROR] Branch can't be 'main'" && exit 1; fi
-        #   # check everything committed
-        #   if [ -n "$(git status --porcelain)" ]; then
-        #       echo "[ERROR] There are uncommitted changes in working tree. Commit, then run this script again"
-        #       exit 1
-        #   fi
-
-        #   # backup work branch
-        #   BACKUP_BRANCH="''${WORK_BRANCH}_backup_$(date +%y%m%d%H%M)"
-        #   git checkout -b "''${BACKUP_BRANCH}"
-
-        #   # update main branch
-        #   git checkout "''${MAIN_BRANCH}"
-        #   git pull
-        #   git checkout "''${WORK_BRANCH}"
-
-        #   # squash all changes of my branch
-        #   LAST_COMMON_COMMIT=$(git merge-base ''${WORK_BRANCH} ''${MAIN_BRANCH})
-        #   git reset --soft ''${LAST_COMMON_COMMIT}
-        #   git commit --all -m "squash all ''${WORK_BRANCH}"
-
-        #   git rebase "''${MAIN_BRANCH}"
-        # '';
         git-unsee = writeScriptBin "git-unsee" ''
           # git add --intent-to-add "$@"
           git update-index --assume-unchanged "$@"
