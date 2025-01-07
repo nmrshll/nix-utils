@@ -100,7 +100,7 @@
         wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
         wdname = writeScriptBin "wdname" ''basename `${wd}`'';
 
-        configure-vscode.rust = writeScriptBin "configure-vscode-rust" ''
+        configure-vscode-rust = writeScriptBin "configure-vscode-rust" ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
