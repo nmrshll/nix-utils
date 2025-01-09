@@ -70,8 +70,10 @@
           MAIN_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
           WORK_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
+          TITLE_OF_FIRST_COMMIT_REBASED=$(git log --format=%B -n 1 $(git merge-base $MAIN_BRANCH $WORK_BRANCH)..$WORK_BRANCH)
+
           # check we're not on main
-          if [[ "''${WORK_BRANCH}" =~ "''${MAIN_BRANCH}" ]]; then echo "[ERROR] Branch can't be 'main'" && exit 1; fi
+          if [[ "''${WORK_BRANCH}" =~ "''${MAIN_BRANCH}" ]]; then echo "[ERROR] Branch can't be main branch" && exit 1; fi
           # check everything committed
           if [ -n "$(git status --porcelain)" ]; then
               echo "[ERROR] There are uncommitted changes in working tree. Commit, then run this script again"
@@ -90,7 +92,7 @@
           # squash all changes of my branch
           LAST_COMMON_COMMIT=$(git merge-base ''${WORK_BRANCH} ''${MAIN_BRANCH})
           git reset --soft ''${LAST_COMMON_COMMIT}
-          git commit --all -m "squash all ''${WORK_BRANCH}"
+          git commit --all -m "$TITLE_OF_FIRST_COMMIT_REBASED"
 
           git rebase "''${MAIN_BRANCH}"
         '';
