@@ -28,11 +28,11 @@
       };
 
       # nix functions/utils to export via attribute `lib`
-      utils = {
+      my-lib = {
         mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
       };
 
-      scripts = with binaries; utils.mkScripts {
+      scripts = with binaries; my-lib.mkScripts {
         configure-vscode-noir = ''        
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
@@ -238,7 +238,7 @@
     in
     {
       inherit packages binaries;
-      lib = utils;
+      lib = my-lib;
     }
   );
 }
