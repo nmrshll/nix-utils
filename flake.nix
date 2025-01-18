@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
     utils.url = "github:numtide/flake-utils";
   };
 
@@ -27,8 +27,12 @@
         rust.enable = pkgs.lib.mkOption { type = pkgs.lib.types.bool; default = false; };
       };
 
-      # TODO expose mkScripts via lib
-      scripts = with binaries; pkgs.lib.mapAttrs (name: value: pkgs.writeShellScriptBin "${name}" ''${value}'') {
+      # nix functions/utils to export via attribute `lib`
+      utils = {
+        mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
+      };
+
+      scripts = with binaries; utils.mkScripts {
         configure-vscode-noir = ''        
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
               SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
@@ -234,6 +238,7 @@
     in
     {
       inherit packages binaries;
+      lib = utils;
     }
   );
 }
