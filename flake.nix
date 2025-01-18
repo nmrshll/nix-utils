@@ -29,7 +29,7 @@
 
       # nix functions/utils to export via attribute `lib`
       my-lib = {
-        debugAttrs = attrs: (lib.trace (lib.attrNames attrs) attrs);
+        debugAttrs = attrs: (trace (attrNames attrs) attrs);
         mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
       };
 
