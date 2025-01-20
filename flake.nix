@@ -75,7 +75,7 @@
           MAIN_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
           WORK_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-          TITLE_OF_FIRST_COMMIT_REBASED=$(git log --format=%B -n 1 $(git merge-base $MAIN_BRANCH $WORK_BRANCH)..$WORK_BRANCH)
+          TITLE_OF_FIRST_COMMIT_REBASED=$(git log --format=%B $(git merge-base $MAIN_BRANCH $WORK_BRANCH)..$WORK_BRANCH | tr -s '\n' | tail -n 1)
 
           # check we're not on main
           if [[ "''${WORK_BRANCH}" =~ "''${MAIN_BRANCH}" ]]; then echo "[ERROR] Branch can't be main branch" && exit 1; fi
