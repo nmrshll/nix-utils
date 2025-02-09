@@ -30,6 +30,7 @@
       # nix functions/utils to export via attribute `lib`
       my-lib = {
         debugAttrs = attrs: (trace (attrNames attrs) attrs);
+        # TODO if attrs, then mapAttrs, but if list, then just map
         mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
       };
 
