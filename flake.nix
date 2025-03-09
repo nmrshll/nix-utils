@@ -7,18 +7,12 @@
   outputs = { self, nixpkgs, utils }: with builtins; utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
+      wd = "$(git rev-parse --show-toplevel)";
+      wdname = "$(basename ${wd})";
 
-      binaries = {
+      bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") scripts // {
         jq = "${pkgs.jq.outPath}/bin/jq";
         tmux = "${pkgs.tmux.outPath}/bin/tmux";
-
-        wd = "${packages.wd}/bin/wd";
-        wdname = "${packages.wdname}/bin/wdname";
-        respawn_tmux = "${packages.respawn_tmux}/bin/respawn_tmux";
-        tmux_attach = "${packages.tmux_attach}/bin/tmuxa";
-        configure-vscode-rust = "${packages.configure-vscode.rust}/bin/configure-vscode-rust";
-        configure-vscode-noir = "${scripts.configure-vscode-noir}/bin/configure-vscode-noir";
-        dotenv = "${packages.dotenv}/bin/dotenv";
       };
 
       # TODO make configure-rust dependent on this
@@ -28,25 +22,13 @@
       };
 
       # nix functions/utils to export via attribute `lib`
-      my-lib = {
+      myLib = {
         debugAttrs = attrs: (trace (attrNames attrs) attrs);
         # TODO if attrs, then mapAttrs, but if list, then just map
         mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
       };
 
-      scripts = with binaries; my-lib.mkScripts {
-        configure-vscode-noir = ''        
-          if [ `expr "$(which code)" : "/bin/code"` ]; then 
-              SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
-              ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
-              NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
-                  | ${jq} ".\"noir.nargoPath\" |= \"$(which nargo)\"" \
-                  | ${jq} ".\"noir.enableLSP\" |= true" \
-              `;
-              if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
-                  echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
-              fi
-          fi'';
+      scripts = with bin; myLib.mkScripts {
         autorebase = ''#!/usr/bin/env bash
           set -euxo pipefail
 
@@ -102,15 +84,22 @@
 
           git rebase "''${MAIN_BRANCH}"
         '';
-      };
 
-      packages = with pkgs; with binaries; scripts // {
-        wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
-        wdname = writeScriptBin "wdname" ''basename `${wd}`'';
-
-        configure-vscode-rust = writeScriptBin "configure-vscode-rust" ''
+        configure-editors = ''
+          if which code | grep -q "/bin/code"; then
+            ${bin.configure-vscode}
+          fi
+        '';
+        configure-vscode = ''set -x
+          if which code | grep -q "/bin/code"; then
+            if [ -f ./Cargo.toml ]; then
+              ${bin.configure-vscode-rust}
+            fi
+          fi
+        '';
+        configure-vscode-rust = ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then 
-              SETTINGS_PATH="`${wd}`/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
+              SETTINGS_PATH="${wd}/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
               NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
                   | ${jq} ".\"rust-analyzer.server.extraEnv\".\"CARGO\" |= \"$(which cargo)\"" \
@@ -131,26 +120,37 @@
               fi
           fi
         '';
+        configure-vscode-noir = ''        
+          if [ `expr "$(which code)" : "/bin/code"` ]; then 
+              SETTINGS_PATH="${wd}/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
+              ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
+              NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
+                  | ${jq} ".\"noir.nargoPath\" |= \"$(which nargo)\"" \
+                  | ${jq} ".\"noir.enableLSP\" |= true" \
+              `;
+              if [ "$(cat $SETTINGS_PATH)" != "$NEW_SETTINGS" ]; then
+                  echo "$NEW_SETTINGS" >| "$SETTINGS_PATH"
+              fi
+          fi'';
 
-
-        git-unsee = writeScriptBin "git-unsee" ''
+        git-unsee = ''
           # git add --intent-to-add "$@"
           git update-index --assume-unchanged "$@"
         '';
 
-        fix-fmt = writeScriptBin "fix-fmt" ''
+        fix-fmt = ''
           cargo fmt --all --
           cargo clippy --fix
         '';
-        check = writeScriptBin "check" ''
+        check = ''
           cargo fmt --all -- --check
           cargo clippy -- -D warnings
         '';
         # reload-nix = writeScriptBin "reload-nix" ''
         #   nix flake lock --update-input scriptUtils && direnv allow
         # '';
-        dotenv = writeScriptBin "dotenv" ''#!/usr/bin/env bash
-          WD=`${wd}`
+        dotenv = ''#!/usr/bin/env bash
+          WD=${wd}
           if [ -f "$WD/.env" ]; then 
               source "$WD/.env"; 
               case "$(uname -s)" in
@@ -159,24 +159,24 @@
               esac
           fi
         '';
-        setenv = writeScriptBin "setenv" ''
+        setenv = ''
           case "$1" in 
-            "local"*)       ln -sf "`${wd}`/infra/local.env" "`${wd}`/.env" ;;
-            "remote-dev"*)  ln -sf "`${wd}`/infra/remote-dev.env" "`${wd}`/.env" ;;
-            "uat"*)         ln -sf "`${wd}`/infra/uat.env" "`${wd}`/.env" ;;
-            "none"*)        rm "`${wd}`/.env" ;;
+            "local"*)       ln -sf "${wd}/infra/local.env" "${wd}/.env" ;;
+            "remote-dev"*)  ln -sf "${wd}/infra/remote-dev.env" "${wd}/.env" ;;
+            "uat"*)         ln -sf "${wd}/infra/uat.env" "${wd}/.env" ;;
+            "none"*)        rm "${wd}/.env" ;;
             
             *) echo "$1 is not a supported environment. Environments supported are [\"none\", \"local\", \"remote-dev\", \"uat\"]" >&2; exit 1
           esac
         '';
 
 
-        sql-migrate-and-export = writeScriptBin "migrate" ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
+        sql-migrate-and-export = ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
         # await_postgres_up = writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
         #   PORT="''${1:-''${POSTGRES_PORT:-5432}}"
         #   while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
         # '';
-        await_postgres = writeScriptBin "await_postgres" ''#!/usr/bin/env bash
+        await_postgres = ''#!/usr/bin/env bash
           PORT="''${1:-''${POSTGRES_PORT:-5432}}"
           # while ! test "`echo -ne "\x00\x00\x00\x17\x00\x03\x00\x00user\x00username\x00\x00" | nc -w 3 0.0.0.0 $PORT 2>/dev/null | head -c1`" = R; do echo "waiting on postgres (port $PORT)..."; sleep 0.3; done;
 
@@ -185,13 +185,13 @@
             echo "waiting on postgres (port $PORT)..."; sleep 0.3;
           done
         '';
-        await_postgres_migrated = writeScriptBin "await_postgres_migrated" ''#!/usr/bin/env bash
+        await_postgres_migrated = ''#!/usr/bin/env bash
           await_postgres
           while test ! "sqlx migrate info | grep -q 'pending'"; do
             echo "waiting on postgres migrations..."; sleep 0.3;
           done
         '';
-        await_server = writeScriptBin "await_server" ''
+        await_server = ''
           if [ -n "$1" ] || [ -n "$SERVER_ORIGIN" ]; then
             SERVER_ORIGIN="''${1:-$SERVER_ORIGIN}"
           else
@@ -201,22 +201,22 @@
 
           while [[ ! `curl "$SERVER_ORIGIN/health" 2>/dev/null` =~ "ok" ]]; do echo "waiting on server ($SERVER_ORIGIN)..."; sleep 0.3; done
         '';
-        down = writeScriptBin "down" ''#!/usr/bin/env bash          
+        down = ''#!/usr/bin/env bash          
           docker-compose -f infra/docker-compose.yml down
           docker network ls --filter "type=custom" --filter="name=`${wdname}`" -q | xargs -r docker network rm
           docker ps --filter="name=`${wdname}`" -aq | xargs -r docker rm -f -v
         '';
-        logs = writeScriptBin "logs" ''
+        logs = ''
           docker-compose -f infra/docker-compose.yml logs -f "$1"
         '';
 
-        respawn_tmux = writeScriptBin "respawn_tmux" ''#!/usr/bin/env bash
+        respawn_tmux = ''#!/usr/bin/env bash
           ${tmux} kill-session -t session 2>/dev/null
           ${tmux} new-session -d -s session
           ${tmux} set-option -g remain-on-exit on
           ${tmux} bind-key C-d kill-server # use Ctrl-b-d to kill all of tmux
         '';
-        tmux_cmd = writeScriptBin "tmux_cmd" ''#!/usr/bin/env bash
+        tmux_cmd = ''#!/usr/bin/env bash
           SESSION="$1"
           shift; CMD="$@"
           if ${tmux} list-windows |grep $SESSION; 
@@ -224,8 +224,8 @@
               else ${tmux} new-window -n $SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER; 
           fi
         '';
-        tmux_attach = writeScriptBin "tmuxa" ''${tmux} attach'';
-        mux = writeScriptBin "mux" ''
+        tmux_attach = ''${tmux} attach'';
+        mux = ''
           ${respawn_tmux};
           while [[ $# -gt 1 ]]; do
             window_name="$1"; cmd="$2"; shift 2
@@ -234,13 +234,23 @@
           ${tmux_attach}
         '';
 
-        docker-build = writeScriptBin "mkdocker" ''nix build .#docker; docker load < result;'';
+        docker-build = ''nix build .#docker; docker load < result;'';
+      };
+
+      packages = with pkgs; with bin; scripts // {
+        # wd = writeScriptBin "wd" ''git rev-parse --show-toplevel'';
+        # wdname = writeScriptBin "wdname" ''basename ${wd}'';
       };
 
     in
     {
-      inherit packages binaries;
-      lib = my-lib;
+      packages = scripts;
+      binaries = bin;
+      lib = myLib;
+
+      devShells.default = with pkgs; mkShell {
+        buildInputs = attrValues (packages // scripts);
+      };
     }
   );
 }
