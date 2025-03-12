@@ -113,6 +113,7 @@
           # backup work branch
           BACKUP_BRANCH="''${WORK_BRANCH}_backup_$(date +%y%m%d%H%M)"
           git checkout -b "''${BACKUP_BRANCH}"
+          git checkout "''${WORK_BRANCH}"
 
           git fetch "$REMOTE_NAME"
           git merge --no-edit "$REMOTE_NAME/$MAIN_REMOTE_BRANCH" || exit 1
