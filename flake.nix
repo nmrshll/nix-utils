@@ -4,10 +4,20 @@
     utils.url = "github:numtide/flake-utils";
   };
 
+  nixConfig = {
+    experimental-features = [ "flakes" "nix-command" ];
+    allow-unsafe-native-code-during-evaluation = true;
+  };
+
   outputs = { self, nixpkgs, utils }: with builtins; utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs { inherit system; };
+      # wd = builtins.getEnv "REPO_ROOT";
+      # currentDir = builtins.toString ./.;
       wd = "$(git rev-parse --show-toplevel)";
+      nuWd = "(git rev-parse --show-toplevel)";
+      sh_use_dbg = ''dbg_var() {  local var_name="$1";  if [ -n "''${!var_name}" ]; then  echo "$var_name=''${!var_name}";  else echo "DBG_VAR: $var_name is not set or is empty"; fi  }'';
+      # wd2 = (builtins.exec [ "git" "rev-parse" "--show-toplevel" ]);
       wdname = "$(basename ${wd})";
 
       bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") scripts // {
@@ -22,13 +32,76 @@
       };
 
       # nix functions/utils to export via attribute `lib`
-      myLib = {
-        debugAttrs = attrs: (trace (attrNames attrs) attrs);
-        # TODO if attrs, then mapAttrs, but if list, then just map
+      utils = {
+        debug = s: trace s s;
+        debugAttrs = attrs: (trace (toJSON attrs) attrs);
+        # TODO if attrs, then mapAttrs, but if one element, then just transform
         mkScripts = pkgs.lib.mapAttrs (name: text: pkgs.writeShellScriptBin "${name}" ''${text}'');
+        mkNuScripts = pkgs.lib.mapAttrs (name: text:
+          let scriptFile = pkgs.writeScriptBin "${name}" ''${text}'';
+          in pkgs.writeScriptBin "${name}" ''${pkgs.nushell}/bin/nu -n "${scriptFile}/bin/${name}" "$@"''
+        );
+        mkNuScript = (name: text:
+          let scriptFile = pkgs.writeScriptBin "${name}" ''${text}'';
+          in pkgs.writeScriptBin "${name}" ''${pkgs.nushell}/bin/nu -n "${scriptFile}/bin/${name}" "$@"''
+        );
       };
 
-      scripts = with bin; myLib.mkScripts {
+      paramScripts = {
+        cvc = extraSettings: utils.mkNuScript "cvc" ''
+          let SETTINGS_FILE = "${nuWd}/.vscode/settings.json"
+          let a = try { open $SETTINGS_FILE } catch { echo '{}' } | from json
+          $a
+        '';
+      };
+
+      nuScripts = utils.mkNuScripts {
+        # cvc = ''let SETTINGS_FILE = "${nuWd}/.vscode/settings.json"
+        # 	let a = try { open $SETTINGS_FILE } catch { echo '{}' } | from json
+        # 	$a
+        #   # if ('${nuWd}/.vscode/settings.json' | path exists) {
+        #   # 	mkdir "${nuWd}/.cache/backups"; cp $SETTINGS_FILE $"${nuWd}/.cache/backups/vscode.settings.json.bak_(date now | format date "%Y%m%d%H%M%S")"
+        # 	# 	exit 0
+        # 	# 	let config_pre = open $SETTINGS_FILE | from json
+        # 	# 	echo $config_pre
+        # 	# 	let obj1 = {name: "Alice", age: 30}
+        # 	# 	let obj2 = {title: "Astronaut", age: 31, rank:3 } 
+
+        # 	# 	($obj1 | merge $obj2) | to json | save --append $SETTINGS_FILE
+        #   # } else {
+        #   # 	echo "File doesn't exist"
+        #   # }
+        # '';
+      };
+
+      scripts = with bin; nuScripts // utils.mkScripts {
+        # rfmt = ''set -x
+        # 	if [ -f "${wd}/rustfmt.toml" ]; 
+        # 		then rustfmt --config-file="${wd}/rustfmt.toml" "$@"
+        # 		else rustfmt "$@"
+        # 	fi
+        # '';
+
+        # wd = ''echo "${wd}" '';
+        # debug = ''
+        #   local var_name="$1"
+        #   if [ -n "${!var_name}" ]; then
+        #       echo "DEBUG: $var_name='${!var_name}'"
+        #   else
+        #       echo "DEBUG: $var_name is not set or is empty"
+        #   fi
+        # '';
+
+        remote-name = ''
+          ${sh_use_dbg}
+          NB_REMOTES="$(git -C "${wd}" remote | wc -l | tr -d '[:space:]')"
+          if [ $NB_REMOTES -eq 1 ]; then
+            CURRENT_REMOTE="$(git -C "${wd}" remote | tr -d '[:space:]')";
+          else
+            >&2 echo "[ERROR]: no unique origin remote"; exit 1
+          fi
+          dbg_var CURRENT_REMOTE
+        '';
         autorebase = ''set -euxo pipefail
           # This script will automatically rebase your branch onto main, by doing:
           #  - backup your current branch
@@ -39,27 +112,28 @@
           #  - for each file, fix conflicts, git-stage the file
           #  - run `git rebase --continue`
           #  - Now, your branch should have one more commit than main
+          ${sh_use_dbg}
 
-          REPO_PATH=$(git rev-parse --show-toplevel)
-          REMOTE_NAME=$(
-            NB_REMOTES=$(git -C "$REPO_PATH" remote | wc -l | tr -d '[:space:]')
-            if [ $NB_REMOTES -eq 1 ]; then
-              CURRENT_REMOTE=$(git -C "$REPO_PATH" remote | tr -d '[:space:]'); echo $CURRENT_REMOTE
-            else
-              >&2 echo "[ERROR]: no unique origin remote"; exit 1
-            fi;
-          );
+          SQUASH=''${SQUASH-false}
+          RESET_TARGET=''${RESET_TARGET-false}
+
+          REMOTE_NAME="$(remote-name)"
           if ! git fetch "$REMOTE_NAME" ; then
               >&2 echo "[ERROR]: Failed to fetch from remote '$REMOTE_NAME'"; 
               exit 1
           fi
-          MAIN_REMOTE_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
+          MAIN_REMOTE_BRANCH=$(git -C "${wd}" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
           WORK_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-          TITLE_OF_FIRST_COMMIT_REBASED=$(git log --format=%B $(git merge-base $MAIN_REMOTE_BRANCH $WORK_BRANCH)..$WORK_BRANCH | tr -s '\n' | tail -n 1)
+          TARGET_BRANCH=''${TARGET_BRANCH-$MAIN_REMOTE_BRANCH}
+          if [ -z "$TARGET_BRANCH" ] || [ "$TARGET_BRANCH" == "null" ]; then echo "TARGET_BRANCH can't be empty"; exit 1; fi
 
-          # check we're not on main
+          # echo "SQUASH: $SQUASH" "WORK_BRANCH: $WORK_BRANCH" "TARGET_BRANCH: $TARGET_BRANCH"
+          # exit 1
+
+          # check we're not on main or TARGET_BRANCH
           if [[ "''${WORK_BRANCH}" =~ "''${MAIN_REMOTE_BRANCH}" ]]; then echo "[ERROR] Branch can't be main branch" && exit 1; fi
+          if [[ "''${WORK_BRANCH}" =~ "''${TARGET_BRANCH}" ]]; then echo "[ERROR] Branch can't be $TARGET_BRANCH" && exit 1; fi
           # check everything committed
           if [ -n "$(git status --porcelain)" ]; then
               echo "[ERROR] There are uncommitted changes in working tree. Commit, then run this script again"
@@ -70,17 +144,25 @@
           BACKUP_BRANCH="''${WORK_BRANCH}_backup_$(date +%y%m%d%H%M)"
           git checkout -b "''${BACKUP_BRANCH}"
 
-          # update main branch
-          git checkout "''${MAIN_REMOTE_BRANCH}"
-          git pull
+          # update target branch
+          git fetch $REMOTE_NAME
+          git checkout "''${TARGET_BRANCH}"
+          if [ "$RESET_TARGET" == "true" ];then
+            git reset --hard "$REMOTE_NAME/$TARGET_BRANCH"
+          else
+            git pull
+          fi
           git checkout "''${WORK_BRANCH}"
 
           # squash all changes of my branch
-          LAST_COMMON_COMMIT=$(git merge-base ''${WORK_BRANCH} ''${MAIN_REMOTE_BRANCH})
-          git reset --soft ''${LAST_COMMON_COMMIT}
-          git commit --all -m "$TITLE_OF_FIRST_COMMIT_REBASED"
+          if [ "$SQUASH" == "true" ];then
+            TITLE_OF_FIRST_COMMIT_REBASED=$(git log --format=%B $(git merge-base $TARGET_BRANCH $WORK_BRANCH)..$WORK_BRANCH | tr -s '\n' | tail -n 1)
+            LAST_COMMON_COMMIT=$(git merge-base ''${WORK_BRANCH} ''${TARGET_BRANCH})
+            git reset --soft ''${LAST_COMMON_COMMIT}
+            git commit --all -m "$TITLE_OF_FIRST_COMMIT_REBASED"
+          fi
 
-          git rebase "''${MAIN_REMOTE_BRANCH}"
+          git rebase "''${TARGET_BRANCH}"
         '';
         gupdate = ''set -x
           REPO_PATH=$(git rev-parse --show-toplevel)
@@ -120,7 +202,7 @@
         '';
 
         configure-editors = ''
-          if which code | grep -q "/bin/code"; then
+          if (code --help | grep -q "Visual Studio Code"); then
             ${bin.configure-vscode}
           fi
         '';
@@ -193,10 +275,15 @@
               esac
           fi
         '';
-        setenv = ''
+        setdotenv = ''
+          if [ -f "${wd}/.env" ] && [ ! -L "${wd}/.env" ]; then
+            mkdir -p "${wd}/infra"; mv "${wd}/.env" "${wd}/infra/.env.bak.$(date +%Y%m%d%H%M%S)"
+          fi
           case "$1" in 
             "local"*)       ln -sf "${wd}/infra/local.env" "${wd}/.env" ;;
             "remote-dev"*)  ln -sf "${wd}/infra/remote-dev.env" "${wd}/.env" ;;
+            "devnet"*)     ln -sf "${wd}/infra/devnet.env" "${wd}/.env" ;;
+            "testnet"*)     ln -sf "${wd}/infra/testnet.env" "${wd}/.env" ;;
             "uat"*)         ln -sf "${wd}/infra/uat.env" "${wd}/.env" ;;
             "none"*)        rm "${wd}/.env" ;;
             
@@ -280,7 +367,7 @@
     {
       packages = scripts;
       binaries = bin;
-      lib = myLib;
+      lib = utils // { inherit paramScripts; };
 
       devShells.default = with pkgs; mkShell {
         buildInputs = attrValues (packages // scripts);
