@@ -1,13 +1,10 @@
 {
-  inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
-    utils.url = "github:numtide/flake-utils";
-  };
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+  inputs.utils.url = "github:numtide/flake-utils";
 
-  nixConfig = {
-    experimental-features = [ "flakes" "nix-command" ];
-    allow-unsafe-native-code-during-evaluation = true;
-  };
+  nixConfig.experimental-features = [ "flakes" "nix-command" ];
+  nixConfig.allow-unsafe-native-code-during-evaluation = true;
+
 
   outputs = { self, nixpkgs, utils }: with builtins; utils.lib.eachDefaultSystem (system:
     let
@@ -65,7 +62,7 @@
         # 	# 	let config_pre = open $SETTINGS_FILE | from json
         # 	# 	echo $config_pre
         # 	# 	let obj1 = {name: "Alice", age: 30}
-        # 	# 	let obj2 = {title: "Astronaut", age: 31, rank:3 } 
+        # 	# 	let obj2 = {title: "Astronaut", age: 31, rank:3 }
 
         # 	# 	($obj1 | merge $obj2) | to json | save --append $SETTINGS_FILE
         #   # } else {
@@ -76,7 +73,7 @@
 
       scripts = with bin; nuScripts // utils.mkScripts {
         # rfmt = ''set -x
-        # 	if [ -f "${wd}/rustfmt.toml" ]; 
+        # 	if [ -f "${wd}/rustfmt.toml" ];
         # 		then rustfmt --config-file="${wd}/rustfmt.toml" "$@"
         # 		else rustfmt "$@"
         # 	fi
@@ -119,7 +116,7 @@
 
           REMOTE_NAME="$(remote-name)"
           if ! git fetch "$REMOTE_NAME" ; then
-              >&2 echo "[ERROR]: Failed to fetch from remote '$REMOTE_NAME'"; 
+              >&2 echo "[ERROR]: Failed to fetch from remote '$REMOTE_NAME'";
               exit 1
           fi
           MAIN_REMOTE_BRANCH=$(git -C "${wd}" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
@@ -175,7 +172,7 @@
             fi;
           );
           if ! git fetch "$REMOTE_NAME" ; then
-              >&2 echo "[ERROR]: Failed to fetch from remote '$REMOTE_NAME'"; 
+              >&2 echo "[ERROR]: Failed to fetch from remote '$REMOTE_NAME'";
               exit 1
           fi
           MAIN_REMOTE_BRANCH=$(git -C "$REPO_PATH" symbolic-ref refs/remotes/''${REMOTE_NAME}/HEAD | sed "s@^refs/remotes/''${REMOTE_NAME}/@@")
@@ -214,7 +211,7 @@
           fi
         '';
         configure-vscode-rust = ''
-          if [ `expr "$(which code)" : "/bin/code"` ]; then 
+          if [ `expr "$(which code)" : "/bin/code"` ]; then
               SETTINGS_PATH="${wd}/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
               NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
@@ -236,8 +233,8 @@
               fi
           fi
         '';
-        configure-vscode-noir = ''        
-          if [ `expr "$(which code)" : "/bin/code"` ]; then 
+        configure-vscode-noir = ''
+          if [ `expr "$(which code)" : "/bin/code"` ]; then
               SETTINGS_PATH="${wd}/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
               ORIGINAL_SETTINGS=$(if [[ $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi)
               NEW_SETTINGS=`echo "$ORIGINAL_SETTINGS" \
@@ -267,8 +264,8 @@
         # '';
         dotenv = ''#!/usr/bin/env bash
           WD=${wd}
-          if [ -f "$WD/.env" ]; then 
-              source "$WD/.env"; 
+          if [ -f "$WD/.env" ]; then
+              source "$WD/.env";
               case "$(uname -s)" in
                   Linux*)     export $(grep -v '^#' .env | xargs) ;;
                   Darwin*)    export `cat "$WD/.env" | grep -v -e '^#' -e '^[[:space:]]*$' | cut -d= -f1` ;;
@@ -279,14 +276,14 @@
           if [ -f "${wd}/.env" ] && [ ! -L "${wd}/.env" ]; then
             mkdir -p "${wd}/infra"; mv "${wd}/.env" "${wd}/infra/.env.bak.$(date +%Y%m%d%H%M%S)"
           fi
-          case "$1" in 
+          case "$1" in
             "local"*)       ln -sf "${wd}/infra/local.env" "${wd}/.env" ;;
             "remote-dev"*)  ln -sf "${wd}/infra/remote-dev.env" "${wd}/.env" ;;
             "devnet"*)     ln -sf "${wd}/infra/devnet.env" "${wd}/.env" ;;
             "testnet"*)     ln -sf "${wd}/infra/testnet.env" "${wd}/.env" ;;
             "uat"*)         ln -sf "${wd}/infra/uat.env" "${wd}/.env" ;;
             "none"*)        rm "${wd}/.env" ;;
-            
+
             *) echo "$1 is not a supported environment. Environments supported are [\"none\", \"local\", \"remote-dev\", \"uat\"]" >&2; exit 1
           esac
         '';
@@ -322,7 +319,7 @@
 
           while [[ ! `curl "$SERVER_ORIGIN/health" 2>/dev/null` =~ "ok" ]]; do echo "waiting on server ($SERVER_ORIGIN)..."; sleep 0.3; done
         '';
-        down = ''#!/usr/bin/env bash          
+        down = ''#!/usr/bin/env bash
           docker-compose -f infra/docker-compose.yml down
           docker network ls --filter "type=custom" --filter="name=`${wdname}`" -q | xargs -r docker network rm
           docker ps --filter="name=`${wdname}`" -aq | xargs -r docker rm -f -v
@@ -340,9 +337,9 @@
         tmux_cmd = ''#!/usr/bin/env bash
           SESSION="$1"
           shift; CMD="$@"
-          if ${tmux} list-windows |grep $SESSION; 
-              then ${tmux} split-window -h -t session:$SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER ; 
-              else ${tmux} new-window -n $SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER; 
+          if ${tmux} list-windows |grep $SESSION;
+              then ${tmux} split-window -h -t session:$SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER ;
+              else ${tmux} new-window -n $SESSION ';' send-keys -t session:$SESSION "''${CMD}" ENTER;
           fi
         '';
         tmux_attach = ''${tmux} attach'';
