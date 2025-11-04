@@ -119,6 +119,11 @@
               git fetch "$REMOTE_NAME"
               git merge --no-edit "$REMOTE_NAME/$MAIN_REMOTE_BRANCH" || exit 1
             '';
+
+        git-unsee = ''
+          # git add --intent-to-add "$@"
+          git update-index --assume-unchanged "$@"
+        '';
       };
     };
 }
