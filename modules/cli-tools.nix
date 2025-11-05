@@ -24,6 +24,7 @@
               esac
           fi
         '';
+
         setdotenv = ''
           if [ -f "${wd}/.env" ] && [ ! -L "${wd}/.env" ]; then
             mkdir -p "${wd}/infra"; mv "${wd}/.env" "${wd}/infra/.env.bak.$(date +%Y%m%d%H%M%S)"

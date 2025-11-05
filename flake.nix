@@ -1,18 +1,17 @@
 {
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
-  inputs.utils.url = "github:numtide/flake-utils";
-  inputs.flake-parts.url = "github:hercules-ci/flake-parts";
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+  inputs.parts = { url = "github:hercules-ci/flake-parts"; inputs.nixpkgs.follows = "nixpkgs"; };
 
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
 
 
-  outputs = inputs@{ self, nixpkgs, utils, flake-parts }: with builtins;
+  outputs = inputs@{ self, nixpkgs, parts }: with builtins;
     let
       dbg = o: (trace (toJSON o) o);
       dbgAttrs = attrs: (trace (attrNames attrs) attrs);
     in
-    flake-parts.lib.mkFlake { inherit inputs; } {
+    parts.lib.mkFlake { inherit inputs; } {
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       imports = [
         ./modules/git.nix
