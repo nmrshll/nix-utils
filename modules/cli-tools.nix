@@ -15,7 +15,7 @@
 
       wd = "$(git rev-parse --show-toplevel)";
       scripts = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
-        dotenv = ''set -x; WD=${wd}
+        dotenv = ''WD=${wd}
           if [ -f "$WD/.env" ]; then
               source "$WD/.env";
               case "$(uname -s)" in

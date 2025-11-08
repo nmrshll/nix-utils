@@ -1,35 +1,52 @@
 {
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
-  inputs.parts = { url = "github:hercules-ci/flake-parts"; inputs.nixpkgs.follows = "nixpkgs"; };
+  inputs.fp.url = "github:hercules-ci/flake-parts";
 
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
 
 
-  outputs = inputs@{ self, nixpkgs, parts }: with builtins;
+  outputs = inputs@{ self, nixpkgs, fp }: with builtins;
     let
       dbg = o: (trace (toJSON o) o);
       dbgAttrs = attrs: (trace (attrNames attrs) attrs);
+      flakeModules = {
+        cli-tools = import ./modules/cli-tools.nix;
+        git = import ./modules/git.nix;
+        editors = import ./modules/editors.nix;
+        services = import ./modules/services.nix;
+      };
     in
-    parts.lib.mkFlake { inherit inputs; } {
+    fp.lib.mkFlake { inherit inputs; } {
+      debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       imports = [
-        ./modules/git.nix
-        ./modules/editors.nix
-        ./modules/cli-tools.nix
-        ./modules/services.nix
-      ];
+        ({ lib, ... }: fp.lib.mkTransposedPerSystemModule {
+          name = "bin";
+          option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
+          file = ./flake.nix;
+        })
+      ] ++ (attrValues flakeModules);
 
-      perSystem = { self', config, pkgs, lib, ... }: {
-        options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
-        config = {
-          inherit bin;
-          devShells.default = with pkgs; mkShell {
-            buildInputs = attrValues (self'.packages);
+      perSystem = { self', config, pkgs, lib, ... }:
+        let
+          # bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") { inherit (pkgs) nixpkgs-fmt gemini-cli; };
+        in
+        {
+          # options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
+
+          config = {
+            # bin = (dbgAttrs config.bin);
+            bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") self'.packages;
+
+            devShells.default = with pkgs; mkShell {
+              buildInputs = attrValues (self'.packages);
+            };
+            # lib = utils;
           };
-          # lib = utils;
         };
-      };
+      flake.flakeModules = flakeModules;
+      # flake.bin = perSystem: perSystem.bin;
     };
 }
 
