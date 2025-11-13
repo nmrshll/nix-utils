@@ -4,7 +4,7 @@ thisFlake:
     with builtins; let
       dbgAttrs = o: (trace (attrNames o) o);
       l = lib // builtins;
-      bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") { inherit (pkgs); };
+      bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
       customRust = pkgs.rust-bin.stable."1.87.0".default.override {
         extensions = [ "rust-src" "rust-analyzer" ];
