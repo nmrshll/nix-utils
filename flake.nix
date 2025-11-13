@@ -1,53 +1,35 @@
 {
   inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
   inputs.fp.url = "github:hercules-ci/flake-parts";
+  inputs.rust-overlay = { url = "github:oxalica/rust-overlay"; inputs.nixpkgs.follows = "nixpkgs"; };
+  inputs.crane = { url = "github:ipetkov/crane"; };
 
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
 
 
-  outputs = inputs@{ self, nixpkgs, fp }: with builtins;
-    let
-      dbg = o: (trace (toJSON o) o);
-      dbgAttrs = attrs: (trace (attrNames attrs) attrs);
-      flakeModules = {
-        cli-tools = import ./modules/cli-tools.nix;
-        git = import ./modules/git.nix;
-        editors = import ./modules/editors.nix;
-        services = import ./modules/services.nix;
+  outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, ... }:
+    with builtins; let
+      # dbg = o: (trace (toJSON o) o);
+      # dbgAttrs = o: (trace (attrNames o) o);
+
+      optionDefModules = (import ./modules/optionDefs.nix).flakeModules;
+      flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
+        cli-tools = ./modules/cli-tools.nix;
+        git = ./modules/git.nix;
+        editors = ./modules/editors.nix;
+        services = ./modules/services.nix;
+        rust = ./modules/rust.nix;
       };
     in
-    fp.lib.mkFlake { inherit inputs; } {
+    {
       debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      imports = [
-        ({ lib, ... }: fp.lib.mkTransposedPerSystemModule {
-          name = "bin";
-          option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
-          file = ./flake.nix;
-        })
-      ] ++ (attrValues flakeModules);
+      imports = [ optionDefModules.all ] ++ (attrValues flakeModules);
 
-      perSystem = { self', config, pkgs, lib, ... }:
-        let
-          # bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") { inherit (pkgs) nixpkgs-fmt gemini-cli; };
-        in
-        {
-          # options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
 
-          config = {
-            # bin = (dbgAttrs config.bin);
-            bin = mapAttrs (name: pkg: "${pkg}/bin/${name}") self'.packages;
-
-            devShells.default = with pkgs; mkShell {
-              buildInputs = attrValues (self'.packages);
-            };
-            # lib = utils;
-          };
-        };
-      flake.flakeModules = flakeModules;
-      # flake.bin = perSystem: perSystem.bin;
-    };
+      flake.flakeModules = flakeModules // { all = optionDefModules.all; };
+    });
 }
 
 

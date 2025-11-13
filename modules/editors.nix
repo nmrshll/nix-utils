@@ -1,3 +1,4 @@
+thisFlake:
 { config, pkgs, ... }: {
   perSystem = { pkgs, config, lib, ... }:
     let

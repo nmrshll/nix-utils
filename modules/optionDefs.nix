@@ -29,56 +29,105 @@ with builtins; let
   #     dedupModules config.use;
   # };
 
-  #   flakeModules.bin = ({ lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
-  #     name = "bin";
-  #     option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
-  #     file = ./flake.nix;
-  #   });
-  flakeModules.bin = { lib, ... }: {
-    perSystem = { ... }: {
-      options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
+  flakeModules.bin = { lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
+    name = "bin";
+    option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
+    file = ./optionDefs.nix;
+  };
+  # flakeModules.bin = { lib, ... }: {
+  #   perSystem = { ... }: {
+  #     options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
+  #     # config.bin = config.bin;
+  #   };
+  # };
+  # flakeModules.lib = { lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
+  #   name = "lib";
+  #   option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+  #   file = ./optionDefs.nix;
+  # };
+  flakeModules.lib = { lib, flake-parts-lib, config, ... }: {
+    imports = [
+      (flake-parts-lib.mkTransposedPerSystemModule {
+        name = "lib";
+        option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+        file = ./optionDefs.nix;
+      })
+    ];
+    # _file = ./optionDefs.nix;
+    # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
+    config = {
+      # lib = config.lib;
+      perSystem = { lib, config, ... }: {
+        # _module.args.lib = lib // config.lib;
+        # _module.args.lib = { };
+        # options.lib = option;
+        options.lib' = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+        config = {
+          _module.args.lib' = (config.lib');
+          lib = config.lib';
+        };
+        # config.bin = config.bin;
+      };
     };
   };
 
-  # lib.mkIf (dbg (hasAttr "myDevShell" options))
+  flakeModules.pkgs = { self, ... }: {
+    perSystem = { lib, system, config, ... }:
+      let
+        overlayType = lib.mkOptionType {
+          name = "nixpkgs-overlay";
+          description = "nixpkgs overlay";
+          check = lib.isFunction;
+          merge = lib.mergeOneOption;
+        };
+      in
+      {
+        options.pkgs.extraPkgs = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.package; default = { }; };
+        options.pkgs.overlays = lib.mkOption { type = lib.types.listOf overlayType; default = [ ]; };
+        config._module.args.pkgs = import self.inputs.nixpkgs {
+          inherit system;
+          overlays = config.pkgs.overlays; # TODO overlays for extraPkgs
+          # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+          #   "terraform"
+          # ];
+        };
+      };
+  };
+
+
   flakeModules.devshell = { lib, pkgs, options, ... }: {
-    perSystem = { lib, pkgs, config, options, ... }: {
-      options = {
-        myDevShell = {
-          buildInputs = lib.mkOption {
-            type = lib.types.listOf lib.types.package;
-            default = [ ];
-            description = "Packages to add to the dev shell environment.";
-          };
-          shellHook = lib.mkOption {
-            type = lib.types.lines;
-            default = "";
-            description = "Lines to add to the shell hook script.";
+    perSystem = { lib, pkgs, config, options, ... }:
+      # let
+      #   shellHookParts = dbg (attrValues config.devShellParts.shellHookParts);
+      #   shp_joined = dbg (lib.concatStringsSep "\n" shellHookParts);
+      # in
+      {
+        options = {
+          devShellParts = {
+            buildInputs = lib.mkOption {
+              type = lib.types.listOf lib.types.package;
+              default = (attrValues config.packages);
+              description = "Packages to add to the dev shell environment.";
+            };
+            shellHookParts = lib.mkOption {
+              type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.lines lib.types.str ]);
+              default = { };
+              description = "Named lines to add to the shell hook script.";
+            };
+            env = lib.mkOption {
+              type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.str lib.types.int ]);
+              default = { };
+              description = "Environment variables to set in the dev shell.";
+            };
           };
         };
-        # devShells.default = lib.mkDefault (lib.mkOption {
-        #   type = lib.types.nullOr lib.types.package;
-        #   default = null;
-        #   description = "The default dev shell to use.";
-        # });
+
+        config.devShells.default = lib.mkDefault (pkgs.mkShell {
+          env = config.devShellParts.env;
+          buildInputs = config.devShellParts.buildInputs;
+          shellHook = lib.concatStringsSep "\n" (attrValues config.devShellParts.shellHookParts);
+        });
       };
-
-      config.devShells.default = lib.mkForce (pkgs.mkShell {
-        buildInputs = config.myDevShell.buildInputs;
-        shellHook = config.myDevShell.shellHook;
-      });
-
-      # pkgs.mkShell
-      #   {
-      #   buildInputs = config.myDevShell.buildInputs;
-      # shellHook = config.myDevShell.shellHook;
-
-      # config.devShells.default = lib.mkIf (!hasAttr "fhdjsk" config.devShells) { };
-      # config.devShells.default = lib.mkIf (!elem "myDevShell" (attrNames options)) (pkgs.mkShell {
-      #   buildInputs = config.myDevShell.buildInputs;
-      #   shellHook = config.myDevShell.shellHook;
-      # });
-    };
   };
 
 in
