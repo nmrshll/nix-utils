@@ -3,6 +3,7 @@ thisFlake:
   perSystem = { pkgs, config, lib, ... }:
     let
       l = lib // builtins;
+      editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
 
       bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
 
@@ -98,6 +99,6 @@ thisFlake:
     in
     {
       inherit bin;
-      packages = scripts;
+      packages = scripts // editorPkgs;
     };
 }
