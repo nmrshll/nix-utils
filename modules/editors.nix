@@ -4,8 +4,11 @@ thisFlake:
     let
       l = lib // builtins;
       editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
-
       bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
+
+
+
+
 
       nuWd = "(git rev-parse --show-toplevel)";
       # TODO if attrs, then mapAttrs, but if one element, then just transform
@@ -52,13 +55,20 @@ thisFlake:
             ${bin.configure-vscode}
           fi
         '';
-        configure-vscode = ''set -x
-              if which code | grep -q "/bin/code"; then
-                if [ -f ./Cargo.toml ]; then
-                  ${bin.configure-vscode-rust}
-                fi
-              fi
-            '';
+        configure-vscode = ''
+          SETTINGS_PATH="${wd}/.vscode/settings.json";
+          ORIGINAL_SETTINGS=$(if [[ -f "$SETTINGS_PATH" && $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi);
+          MERGED_SETTINGS=$(echo "$ORIGINAL_SETTINGS" | ${bin.jq} --argjson new_data '${l.toJSON config.vscode.settings}' '. * $new_data');
+          mkdir -p "$(dirname "$SETTINGS_PATH")";
+          echo "$MERGED_SETTINGS" >| "$SETTINGS_PATH";
+        '';
+        # configure-vscode = ''set -x
+        #       if which code | grep -q "/bin/code"; then
+        #         if [ -f ./Cargo.toml ]; then
+        #           ${bin.configure-vscode-rust}
+        #         fi
+        #       fi
+        #     '';
         configure-vscode-rust = with bin; ''
           if [ `expr "$(which code)" : "/bin/code"` ]; then
               SETTINGS_PATH="${wd}/.vscode/settings.json"; mkdir -p $(dirname "$SETTINGS_PATH");
@@ -98,7 +108,16 @@ thisFlake:
 
     in
     {
-      inherit bin;
-      packages = scripts // editorPkgs;
+      options.vscode.settings = lib.mkOption {
+        type = lib.types.attrs;
+        default = { };
+        description = "VSCode settings (local to repo)";
+      };
+      config = {
+        inherit bin;
+        packages = scripts // editorPkgs;
+        devShellParts.buildInputs = (l.attrValues scripts);
+        devShellParts.shellHookParts = { configure-editors = bin.configure-editors; };
+      };
     };
 }

@@ -6,7 +6,8 @@ thisFlake:
       l = lib // builtins;
       bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
-      customRust = pkgs.rust-bin.stable."1.87.0".default.override {
+      # rust-bin.beta.latest.default
+      customRust = pkgs.rust-bin.beta.latest.default.override {
         extensions = [ "rust-src" "rust-analyzer" ];
         targets = [ ];
       };
@@ -62,8 +63,8 @@ thisFlake:
         		else rustfmt "$@"
         	fi
         '';
-        cargo-newbin = ''cargo new --bin "$1" --vcs none'';
-        cargo-newlib = ''cargo new --lib "$1" --vcs none'';
+        cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
+        cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
 
         build = ''nix build . --show-trace '';
         # run = ''cargo run $(packages) $@ '';
@@ -91,6 +92,25 @@ thisFlake:
       lib' = {
         inherit craneLib;
         customRust = { inherit buildCrate; };
+      };
+
+      vscode.settings = {
+        "rust-analyzer.server.extraEnv" = {
+          CARGO = "${customRust}/bin/cargo";
+          RUSTC = "${customRust}/bin/rustc";
+          RUSTFMT = "${customRust}/bin/rustfmt";
+          # SQLX_OFFLINE = 1;
+          # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
+        };
+        "rust-analyzer.server.path" = "${customRust}/bin/rust-analyzer";
+        "rust-analyzer.runnables.command" = "${customRust}/bin/cargo";
+        "rust-analyzer.runnables.extraEnv" = {
+          CARGO = "${customRust}/bin/cargo";
+          RUSTC = "${customRust}/bin/rustc";
+          RUSTFMT = "${customRust}/bin/rustfmt";
+          # SQLX_OFFLINE = 1;
+          # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
+        };
       };
     };
 }
