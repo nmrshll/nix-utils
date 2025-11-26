@@ -28,6 +28,10 @@
       imports = [ optionDefModules.all ] ++ (attrValues flakeModules);
 
 
+      perSystem = { pkgs, config, ... }: {
+        devShellParts.buildInputs = [ config.packages.openspec ];
+      };
+
       flake.flakeModules = flakeModules // { all = optionDefModules.all; };
     });
 }

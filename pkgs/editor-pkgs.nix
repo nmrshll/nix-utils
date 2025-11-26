@@ -1,28 +1,36 @@
 let
   pkgDefs.openspec = rec {
     versions = {
-      "0.15.0" = { hash = "sha256-0xhfq1vj0wrwrjffyb136hslncb3hv6gb2ikx1ip6fb6jkcjdgar"; npmDepsHash = ""; };
+      "0.16.0" = { sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY="; };
+      "0.15.0" = { sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY="; };
     };
-    mkPackage = { pkgs, lib, version ? "0.15.0", ... }:
-      pkgs.buildNpmPackage {
-        name = "openspec";
-        src = pkgs.fetchFromGitHub {
-          owner = "Fission-AI";
-          repo = "OpenSpec";
-          tag = "v${version}";
-          hash = versions.${version}.hash;
-        };
-        npmDepsHash = versions.${version}.npmDepsHash;
+    mkPackage = { pkgs, version ? "0.16.0", ... }: pkgs.buildNpmPackage rec {
+      inherit version;
+      pname = "openspec";
 
-        nativeBuildInputs = [ pkgs.typescript ];
-
-        meta = {
-          description = "OpenSpec CLI";
-          homepage = "https://github.com/Fission-AI/OpenSpec";
-          license = lib.licenses.mit;
-          mainProgram = "openspec";
-        };
+      src = pkgs.fetchFromGitHub {
+        owner = "Fission-AI";
+        repo = "OpenSpec";
+        rev = "v${version}";
+        sha256 = versions.${version}.sha256;
       };
+      pnpmDeps = pkgs.pnpm.fetchDeps {
+        inherit pname version src;
+        fetcherVersion = 2;
+        hash = "sha256-qqIdSF41gv4EDxEKP0sfpW1xW+3SMES9oGf2ru1lUnE=";
+      };
+      npmConfigHook = pkgs.pnpm.configHook;
+      npmDeps = pnpmDeps;
+      dontNpmPrune = true; # hangs forever on both Linux/darwin
+
+      meta = with pkgs.lib; {
+        description = "Spec-driven development framework for AI coding assistants";
+        homepage = "https://github.com/Fission-AI/OpenSpec";
+        license = licenses.mit;
+        mainProgram = "openspec";
+        platforms = platforms.all;
+      };
+    };
   };
 
 
@@ -45,8 +53,3 @@ builtins.foldl'
     versionedPkgs // defaultPkg
     )
     (builtins.attrNames pkgDefs))
-
-
-
-
-
