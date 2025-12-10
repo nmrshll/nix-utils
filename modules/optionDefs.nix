@@ -114,7 +114,7 @@ with builtins; let
                   name = "${pkgName}_${version}";
                   value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
                 })
-                (attrNames pkgDef.versions));
+                (attrNames pkgDef.versions.${system} or { }));
               defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
             in
             versionedPkgs // defaultPkg

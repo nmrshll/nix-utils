@@ -2,9 +2,9 @@
 
   handy = rec {
     versions = {
-      "x86_64-linux"."0.6.4" = "sha256-tItYRJL0e5mQMRufWBh8zcqJPDkbLf98jW9yjB50Z4Q=";
-      "x86_64-darwin"."0.6.4" = "sha256-yTRNaH/P5nMKT2oYk9b9oRH8s6PAi30Vtfw9TgE7WnE=";
-      "aarch64-darwin"."0.6.4" = "sha256-9trjwzQIqM5Okvnj2GAlBxKajyBiM0HbNmw4JukUsF4=";
+      x86_64-linux."0.6.4".sha256 = "sha256-tItYRJL0e5mQMRufWBh8zcqJPDkbLf98jW9yjB50Z4Q=";
+      x86_64-darwin."0.6.4".sha256 = "sha256-yTRNaH/P5nMKT2oYk9b9oRH8s6PAi30Vtfw9TgE7WnE=";
+      aarch64-darwin."0.6.4".sha256 = "sha256-9trjwzQIqM5Okvnj2GAlBxKajyBiM0HbNmw4JukUsF4=";
     };
     mkPackage = { pkgs, version ? "0.6.4", ... }:
       with builtins; let
@@ -12,7 +12,7 @@
         arch = pkgs.stdenv.hostPlatform.uname.processor;
         url = if pkgs.lib.platforms.isDarwin then "$" else "";
         src = fetchurl {
-          inherit url; sha256 = versions.${pkgs.system}.${version};
+          inherit url; sha256 = versions.${pkgs.system}.${version}.sha256;
         };
         pname = "handy";
 
@@ -55,67 +55,47 @@
             comment = "Fast and accurate local transcription app";
             exec = "handy";
             icon = "handy";
-            categories = [
-              "Audio"
-              "AudioVideo"
-              "Utility"
-            ];
+            categories = [ "Audio" "AudioVideo" "Utility" ];
             startupNotify = true;
           })
         ];
 
         unpackPhase =
-          if pkgs.stdenv.isLinux then
-            ''
-              runHook preUnpack
-
-              dpkg -x $src .
-
-              runHook postUnpack
-            ''
-          else
-            ''
-              runHook preUnpack
-
-              mkdir -p ./unpacked
-              tar -xzf $src -C ./unpacked
-
-              runHook postUnpack
-            '';
-
+          if pkgs.stdenv.isLinux then ''
+            runHook preUnpack
+            dpkg -x $src .
+            runHook postUnpack
+          ''
+          else ''
+            runHook preUnpack
+            mkdir -p ./unpacked
+            tar -xzf $src -C ./unpacked
+            runHook postUnpack
+          '';
         installPhase =
-          if pkgs.stdenv.isLinux then
-            ''
-              runHook preInstall
-
-              # Install the binary
-              install -Dm755 usr/bin/handy $out/bin/handy
-
-              # Install resources
-              mkdir -p $out/lib/Handy/resources
-              cp -r usr/lib/Handy/resources/* $out/lib/Handy/resources/
-
-              # Install icons
-              mkdir -p $out/share/icons/hicolor
-              if [ -d usr/share/icons/hicolor ]; then
-                cp -r usr/share/icons/hicolor/* $out/share/icons/hicolor/
-              fi
-
-              runHook postInstall
-            ''
-          else
-            ''
-              runHook preInstall
-
-              mkdir -p $out/Applications
-              cp -r ./unpacked/Handy.app $out/Applications/
-
-              # Create a wrapper script in bin
-              mkdir -p $out/bin
-              makeWrapper $out/Applications/Handy.app/Contents/MacOS/Handy $out/bin/handy
-
-              runHook postInstall
-            '';
+          if pkgs.stdenv.isLinux then ''
+            runHook preInstall
+            # Install the binary
+            install -Dm755 usr/bin/handy $out/bin/handy
+            # Install resources
+            mkdir -p $out/lib/Handy/resources
+            cp -r usr/lib/Handy/resources/* $out/lib/Handy/resources/
+            # Install icons
+            mkdir -p $out/share/icons/hicolor
+            if [ -d usr/share/icons/hicolor ]; then
+              cp -r usr/share/icons/hicolor/* $out/share/icons/hicolor/
+            fi
+            runHook postInstall
+          ''
+          else ''
+            runHook preInstall
+            mkdir -p $out/Applications
+            cp -r ./unpacked/Handy.app $out/Applications/
+            # Create a wrapper script in bin
+            mkdir -p $out/bin
+            makeWrapper $out/Applications/Handy.app/Contents/MacOS/Handy $out/bin/handy
+            runHook postInstall
+          '';
 
         meta = with pkgs.lib; {
           description = "Fast and accurate local transcription app using AI models";
@@ -123,11 +103,7 @@
           changelog = "https://github.com/cjpais/Handy/releases/tag/v${version}";
           sourceProvenance = with sourceTypes; [ binaryNativeCode ];
           maintainers = [ ];
-          platforms = [
-            "x86_64-linux"
-            "x86_64-darwin"
-            "aarch64-darwin"
-          ];
+          platforms = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
           mainProgram = "handy";
         };
       };
