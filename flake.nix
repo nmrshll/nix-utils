@@ -1,12 +1,11 @@
 {
-  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+  inputs.nixpkgs.url = "github:nixos/nixpkgs/nixos-25.11";
   inputs.fp.url = "github:hercules-ci/flake-parts";
   inputs.rust-overlay = { url = "github:oxalica/rust-overlay"; inputs.nixpkgs.follows = "nixpkgs"; };
   inputs.crane = { url = "github:ipetkov/crane"; };
 
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
-
 
   outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, ... }:
     with builtins; let

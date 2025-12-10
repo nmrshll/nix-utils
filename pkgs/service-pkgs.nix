@@ -2,15 +2,17 @@
 
   handy = rec {
     versions = {
-      x86_64-linux."0.6.4".sha256 = "sha256-tItYRJL0e5mQMRufWBh8zcqJPDkbLf98jW9yjB50Z4Q=";
-      x86_64-darwin."0.6.4".sha256 = "sha256-yTRNaH/P5nMKT2oYk9b9oRH8s6PAi30Vtfw9TgE7WnE=";
-      aarch64-darwin."0.6.4".sha256 = "sha256-9trjwzQIqM5Okvnj2GAlBxKajyBiM0HbNmw4JukUsF4=";
+      aarch64-darwin."0.6.5".sha256 = "";
+      x86_64-linux."0.6.4".sha256 = "tItYRJL0e5mQMRufWBh8zcqJPDkbLf98jW9yjB50Z4Q=";
+      x86_64-darwin."0.6.4".sha256 = "yTRNaH/P5nMKT2oYk9b9oRH8s6PAi30Vtfw9TgE7WnE=";
+      aarch64-darwin."0.6.4".sha256 = "9trjwzQIqM5Okvnj2GAlBxKajyBiM0HbNmw4JukUsF4=";
     };
-    mkPackage = { pkgs, version ? "0.6.4", ... }:
+    mkPackage = { pkgs, version ? "0.6.5", ... }:
       with builtins; let
-        # arch =  if  then "aarch64" else "x86";
-        arch = pkgs.stdenv.hostPlatform.uname.processor;
-        url = if pkgs.lib.platforms.isDarwin then "$" else "";
+        arch = elemAt (split "-" pkgs.system) 0;
+        url =
+          if pkgs.stdenv.isDarwin then "https://github.com/cjpais/Handy/releases/download/v${version}/Handy_${arch}.app.tar.gz"
+          else "https://github.com/cjpais/Handy/releases/download/v${version}/Handy_${version}_amd64.deb";
         src = fetchurl {
           inherit url; sha256 = versions.${pkgs.system}.${version}.sha256;
         };
