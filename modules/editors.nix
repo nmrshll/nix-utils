@@ -1,9 +1,9 @@
 thisFlake:
 { config, pkgs, ... }: {
-  perSystem = { pkgs, config, lib, ... }:
+  perSystem = { pkgs, config, lib, ownPkgs, ... }:
     let
       l = lib // builtins;
-      editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
+      # editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
       bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
 
 
@@ -115,7 +115,8 @@ thisFlake:
       };
       config = {
         inherit bin;
-        packages = scripts // editorPkgs;
+        # packages = scripts // ownPkgs;
+        packages = scripts;
         devShellParts.buildInputs = (l.attrValues scripts);
         devShellParts.shellHookParts = { configure-editors = bin.configure-editors; };
       };

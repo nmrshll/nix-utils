@@ -71,6 +71,7 @@ with builtins; let
     };
   };
 
+  # This lets any modules add overlays or extra packages to the pkgs argument.
   flakeModules.pkgs = { self, ... }: {
     perSystem = { lib, system, config, ... }:
       let
@@ -91,6 +92,41 @@ with builtins; let
           #   "terraform"
           # ];
         };
+      };
+  };
+
+  # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
+  flakeModules.ownPkgs = { self, ... }: {
+    perSystem = { pkgs, lib, system, config, ... }:
+      let
+        pkgDefs = (import ../pkgs/editor-pkgs.nix) // (import ../pkgs/service-pkgs.nix);
+
+        # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
+        # # (/. + builtins.unsafeDiscardStringContext self.outPath)
+        # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
+
+        ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
+          (pkgName:
+            let
+              pkgDef = getAttr pkgName pkgDefs;
+              versionedPkgs = listToAttrs (map
+                (version: {
+                  name = "${pkgName}_${version}";
+                  value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
+                })
+                (attrNames pkgDef.versions));
+              defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
+            in
+            versionedPkgs // defaultPkg
+          )
+          (attrNames pkgDefs));
+
+        ownPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs;
+
+      in
+      {
+        _module.args.ownPkgs = ownPkgs;
+        packages = ownPkgs;
       };
   };
 

@@ -1,8 +1,8 @@
-let
-  pkgDefs.openspec = rec {
+{
+  openspec = rec {
     versions = {
-      "0.16.0" = { sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY="; };
-      "0.15.0" = { sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY="; };
+      "0.16.0".sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY=";
+      "0.15.0".sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY=";
     };
     mkPackage = { pkgs, version ? "0.16.0", ... }: pkgs.buildNpmPackage rec {
       inherit version;
@@ -32,24 +32,26 @@ let
       };
     };
   };
+}
 
 
-in
-builtins.foldl'
-  (a: b: builtins.deepSeq b (a // b))
-{ }
-  (builtins.map
-    (pkgName:
-    let
-      pkgDef = builtins.getAttr pkgName pkgDefs;
-      versionedPkgs = builtins.listToAttrs (builtins.map
-        (version: {
-          name = "${pkgName}_${version}";
-          value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
-        })
-        (builtins.attrNames pkgDef.versions));
-      defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
-    in
-    versionedPkgs // defaultPkg
-    )
-    (builtins.attrNames pkgDefs))
+# in
+
+# builtins.foldl'
+#   (a: b: builtins.deepSeq b (a // b))
+# { }
+#   (builtins.map
+#     (pkgName:
+#     let
+#       pkgDef = builtins.getAttr pkgName pkgDefs;
+#       versionedPkgs = builtins.listToAttrs (builtins.map
+#         (version: {
+#           name = "${pkgName}_${version}";
+#           value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
+#         })
+#         (builtins.attrNames pkgDef.versions));
+#       defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
+#     in
+#     versionedPkgs // defaultPkg
+#     )
+#     (builtins.attrNames pkgDefs))
