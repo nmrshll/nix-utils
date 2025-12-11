@@ -4,7 +4,7 @@
       aarch64-darwin."0.16.0".sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY=";
       aarch64-darwin."0.15.0".sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY=";
     };
-    mkPackage = { pkgs, version ? "0.16.0", ... }: pkgs.buildNpmPackage rec {
+    mkPackage = { pkgs, version ? "0.16.0", system ? pkgs.stdenv.hostPlatform.system, ... }: pkgs.buildNpmPackage rec {
       inherit version;
       pname = "openspec";
 
@@ -12,7 +12,7 @@
         owner = "Fission-AI";
         repo = "OpenSpec";
         rev = "v${version}";
-        sha256 = versions.${pkgs.system}.${version}.sha256;
+        sha256 = versions.${system}.${version}.sha256;
       };
       pnpmDeps = pkgs.pnpm.fetchDeps {
         inherit pname version src;
