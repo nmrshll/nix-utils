@@ -10,9 +10,9 @@ in
     mkPkg = { pkgs, version ? "0.47.3", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
         l = builtins // pkgs.callPackage ../utils/utils.nix { };
-        url = {
+        url = l.forSystem {
           aarch64-darwin = "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-${version}-mac-arm64.dmg";
-        }.${system} or (throw "Unsupported system: ${system}");
+        };
       in
       l.darwin.installDmg (dbg {
         inherit version url;
@@ -95,5 +95,79 @@ in
         meta = { description = "Cross-platform BitTorrent client"; homepage = "https://transmissionbt.com"; };
       };
   };
+
+  finicky = rec {
+    versions = {
+      aarch64-darwin."4.1.4".sha256 = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b";
+    };
+    mkPkg = { pkgs, version ? "4.1.4", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        # versionHashes = { aarch64-darwin."4.1.4" = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b"; }.${pkgs.system};
+        url = {
+          aarch64-darwin = "https://github.com/johnste/finicky/releases/download/v${version}/Finicky.dmg";
+        }.${pkgs.system};
+      in
+      l.darwin.installDmg {
+        inherit url version;
+        sha256 = versions.${system}.${version}.sha256;
+        appname = "Finicky";
+        meta = { description = "A macOS app for customizing which browser to start"; homepage = "https://github.com/johnste/finicky"; };
+      };
+  };
+
+  comfy-ui = rec {
+    versions = {
+      aarch64-darwin."241012ess7yxs0e".sha256 = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
+    };
+    mkPkg = { pkgs, version ? "241012ess7yxs0e", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        # versions = {
+        #   aarch64-darwin."241012ess7yxs0e" = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
+        # }.${pkgs.system}.${version};
+      in
+      l.darwin.installDmg {
+        inherit version;
+        sha256 = versions.${system}.${version}.sha256;
+        url = "https://dl.todesktop.com/${version}/mac/dmg/arm64";
+        appname = "ComfyUI";
+        meta = { description = "ComfyUI is a powerful, flexible, and user-friendly interface for Stable Diffusion."; homepage = "https://www.comfy.org/"; };
+      };
+  };
+
+  # ABANDONED
+  # ito = { pkgs, version ? "0.9.0" }:
+  #   let
+  #     versionHashes = {
+  #       aarch64-darwin."0.9.0" = "sha256:0ii3mgknaxyrk7xamzn6sqp2828v2rsq8w38s4yqrkfhs53aclq6";
+  #     }.${pkgs.system};
+  #     url = {
+  #       aarch64-darwin = "https://github.com/heyito/ito/releases/download/v${version}/Ito-Installer.dmg";
+  #     }.${pkgs.system};
+  #   in
+  #   localLib.installDmg {
+  #     inherit url version;
+  #     sha256 = versionHashes.${version};
+  #     appname = "Ito";
+  #     meta = { source = "https://github.com/heyito/ito"; description = "Type with your Voice"; homepage = "https://www.ito.ai/"; };
+  #   };
+
+  # ABANDONED
+  # tome = { pkgs, version ? "0.2.0" }:
+  #   let
+  #     versionHashes = {
+  #       aarch64-darwin."0.2.0" = "sha256:1z1rxb0xavi9idf100i7mimsrgkivyh860818yy9zbryy2af2dv8";
+  #     }.${pkgs.system};
+  #     url = {
+  #       aarch64-darwin = "https://github.com/joshkotrous/tome/releases/download/v${version}/tome-mac-arm64.dmg";
+  #     }.${pkgs.system};
+  #   in
+  #   localLib.installDmg {
+  #     inherit url version;
+  #     sha256 = versionHashes.${version};
+  #     appname = "Tome";
+  #     meta = { source = "https://github.com/joshkotrous/tome"; description = "AI-native database client that translates natural language into perfect queries"; homepage = "https://tome.lang/"; };
+  #   };
 
 }
