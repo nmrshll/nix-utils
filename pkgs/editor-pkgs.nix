@@ -76,6 +76,84 @@
   #       };
   #     };
 
+  warp = rec {
+    versions = {
+      aarch64-darwin."0.2025.07.02.08.36.stable_02".sha256 = "sha256:06ys4d5p9fw0v0033ckxlnmlxpmkrydzm7c53bipvah1i9i5nxk1";
+      aarch64-darwin."0.2025.06.25.08.12.stable_01".sha256 = "sha256:09n9frfds1a71zkbhydiv87ckb4frlai2c9qmp0zrx313x8i5y7g";
+    };
+    mkPkg = { pkgs, version ? "0.2025.07.02.08.36.stable_02", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        url = l.forSystem {
+          aarch64-darwin = "https://releases.warp.dev/stable/v${version}/Warp.dmg";
+        };
+      in
+      l.darwin.installDmg {
+        inherit url version;
+        sha256 = versions.${system}.${version}.sha256;
+        appname = "Warp";
+        meta = { description = "The Agentic Development Environment (it's actually a terminal)"; homepage = "https://warp.dev/"; };
+      };
+  };
+
+  windsurf = rec {
+    versions = {
+      aarch64-darwin."1.2.4".sha256 = "sha256:1h05cvvk7qjsnws2y48aajabzgafhi0nmmk840f2x7cmjvqlfq1j";
+      x86_64-linux."1.2.4".sha256 = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06";
+    };
+    mkPkg = { pkgs, version ? "1.2.4", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        url = l.forSystem {
+          aarch64-darwin = "https://windsurf-stable.codeiumdata.com/darwin-arm64-dmg/stable/7f3de2bfc56b2f76334027e4d55dd26daa003035/Windsurf-darwin-arm64-${version}.dmg";
+          # x86_64-linux = "https://windsurf-stable.codeiumdata.com/linux-x64/stable/${hash}/Windsurf-linux-x64-${version}.tar.gz"
+        };
+        # src = l.forSystem {
+        #   aarch64-darwin = { inherit url; sha = "sha256:1h05cvvk7qjsnws2y48aajabzgafhi0nmmk840f2x7cmjvqlfq1j"; };
+        #   x86_64-linux = { inherit url; sha = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06"; };
+        # };
+      in
+      if pkgs.system == "aarch64-darwin" then
+        (l.darwin.installDmg {
+          inherit url version;
+          sha256 = versions.${system}.${version}.sha256;
+          appname = "Windsurf";
+          meta = { description = "Windsurf is an AI code editor."; homepage = "https://codeium.com/windsurf"; };
+        }) else null;
+  };
+
+  aide = rec {
+    versions = {
+      aarch64-darwin."1.96.4.25031".sha256 = "sha256:0xkllb9a7wp5wyadppsblskdwa87qrab8f6ymkfkbypd0fkl6x4q";
+      x86_64-linux."1.96.4.25031".sha256 = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06";
+    };
+    mkPkg = { pkgs, version ? "1.96.4.25031", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        url = l.forSystem {
+          aarch64-darwin = "https://github.com/codestoryai/binaries/releases/download/${version}/Aide.arm64.${version}.dmg";
+          # x86_64-linux = "https://windsurf-stable.codeiumdata.com/linux-x64/stable/${hash}/Windsurf-linux-x64-${version}.tar.gz"
+        };
+        # src = l.forSystem
+        #   {
+        #     aarch64-darwin = { inherit url; sha = "sha256:0xkllb9a7wp5wyadppsblskdwa87qrab8f6ymkfkbypd0fkl6x4q"; };
+        #     x86_64-linux = { inherit url; sha = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06"; };
+        #   };
+      in
+      if pkgs.system == "aarch64-darwin" then
+        (l.darwin.installDmg {
+          inherit url version;
+          sha256 = versions.${system}.${version}.sha256;
+          appname = "Aide";
+          meta = {
+            description = "Aide is an open-source AI code editor (fork of VSCode).";
+            homepage = "https://aide.dev/";
+          };
+        }) else null;
+  };
+
+
+
 
 
 }
