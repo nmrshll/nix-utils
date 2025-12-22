@@ -1,8 +1,8 @@
 with builtins; let
   dbg = o: trace (toJSON o) o;
+
 in
 {
-
   anytype = rec {
     versions = {
       aarch64-darwin."0.47.3".sha256 = "sha256:1xs52cnr81fzqg4cp7cbvmlnjgi548nv8sxbvdsd4gvl3v09c3qj";
@@ -63,11 +63,6 @@ in
       };
   };
 
-
-
-
-
-
   # ferdium =
   #   let
   #     version = "7.0.0";
@@ -84,19 +79,6 @@ in
   #     meta = { description = "All your services in one place built by the community"; homepage = "https://ferdium.org"; };
   #   };
 
-  # transmission =
-  #   let
-  #     version = "4.0.6";
-  #     src = localLib.forSystem {
-  #       aarch64-darwin = { url = "https://github.com/transmission/transmission/releases/download/${version}/Transmission-${version}.dmg"; sha256 = "sha256:06kw4zkn6a3hd8s66hk77v4k0b7z7mn5h0y69hwgbhp0abqmg676"; };
-  #     };
-  #   in
-  #   localLib.installDmg {
-  #     inherit (src) url sha256;
-  #     inherit version;
-  #     appname = "Transmission";
-  #     meta = { description = "Cross-platform BitTorrent client"; homepage = "https://transmissionbt.com"; };
-  #   };
   transmission = rec {
     versions = {
       aarch64-darwin."4.0.6".sha256 = "sha256:06kw4zkn6a3hd8s66hk77v4k0b7z7mn5h0y69hwgbhp0abqmg676";
@@ -112,6 +94,6 @@ in
         appname = "Transmission";
         meta = { description = "Cross-platform BitTorrent client"; homepage = "https://transmissionbt.com"; };
       };
-
   };
+
 }
