@@ -99,7 +99,7 @@ with builtins; let
   flakeModules.ownPkgs = { self, ... }: {
     perSystem = { pkgs, lib, system, config, ... }:
       let
-        pkgDefs = (import ../pkgs/editor-pkgs.nix) // (import ../pkgs/service-pkgs.nix);
+        pkgDefs = (import ../pkgs/editor-pkgs.nix) // (import ../pkgs/service-pkgs.nix) // (import ../pkgs/gui-pkgs.nix);
 
         # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
         # # (/. + builtins.unsafeDiscardStringContext self.outPath)
