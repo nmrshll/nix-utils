@@ -4,7 +4,7 @@
       aarch64-darwin."0.16.0".sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY=";
       aarch64-darwin."0.15.0".sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY=";
     };
-    mkPackage = { pkgs, version ? "0.16.0", system ? pkgs.stdenv.hostPlatform.system, ... }: pkgs.buildNpmPackage rec {
+    mkPkg = { pkgs, version ? "0.16.0", system ? pkgs.stdenv.hostPlatform.system, ... }: pkgs.buildNpmPackage rec {
       inherit version;
       pname = "openspec";
 
@@ -47,10 +47,10 @@
 #       versionedPkgs = builtins.listToAttrs (builtins.map
 #         (version: {
 #           name = "${pkgName}_${version}";
-#           value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
+#           value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib version; });
 #         })
 #         (builtins.attrNames pkgDef.versions));
-#       defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
+#       defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); };
 #     in
 #     versionedPkgs // defaultPkg
 #     )

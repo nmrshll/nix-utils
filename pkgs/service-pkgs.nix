@@ -7,7 +7,7 @@
       x86_64-darwin."0.6.4".sha256 = "yTRNaH/P5nMKT2oYk9b9oRH8s6PAi30Vtfw9TgE7WnE=";
       aarch64-darwin."0.6.4".sha256 = "9trjwzQIqM5Okvnj2GAlBxKajyBiM0HbNmw4JukUsF4=";
     };
-    mkPackage = { pkgs, version ? "0.6.5", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, version ? "0.6.5", system ? pkgs.stdenv.hostPlatform.system, ... }:
       with builtins; let
         arch = elemAt (split "-" system) 0;
         url =

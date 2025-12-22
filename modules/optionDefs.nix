@@ -112,10 +112,10 @@ with builtins; let
               versionedPkgs = listToAttrs (map
                 (version: {
                   name = "${pkgName}_${version}";
-                  value = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib version; });
+                  value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib version; });
                 })
                 (attrNames pkgDef.versions.${system} or { }));
-              defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPackage { inherit pkgs lib; }); };
+              defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); };
             in
             versionedPkgs // defaultPkg
           )

@@ -1,12 +1,13 @@
 { pkgs, ... }:
 with builtins; let
-  throwSystem = throw "Unsupported system: ${pkgs.system}";
-  forSystem = perSystemAttrs: perSystemAttrs.${pkgs.system} or throwSystem;
-  slugify = str: pkgs.lib.toLower (replaceStrings [ " " ] [ "-" ] str);
+  # throwSystem = throw "Unsupported system: ${pkgs.system}";
+  # forSystem = perSystemAttrs: perSystemAttrs.${pkgs.system} or throwSystem;
+  # slugify = str: pkgs.lib.toLower (replaceStrings [ " " ] [ "-" ] str);
+  l = builtins // (pkgs.callPackage ./utils.nix { });
 
 in
 {
-  inherit slugify forSystem;
+  # inherit slugify forSystem;
 
   installDmg = { version, url, sha256, appname, meta }: pkgs.stdenvNoCC.mkDerivation {
     inherit version;
@@ -14,7 +15,7 @@ in
       platforms = [ "aarch64-darwin" ];
     };
     src = fetchurl { inherit url sha256; };
-    pname = slugify appname;
+    pname = l.slugify appname;
     nativeBuildInputs = [ pkgs.undmg ];
     buildInputs = [ pkgs.unzip ];
     unpackCmd = ''set -x
