@@ -194,25 +194,87 @@ in
   #     };
   # };
 
+  lulu = rec {
     versions = {
-      aarch64-darwin."5415".sha256 = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
+      aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
+      aarch64-darwin."3.1.5".sha256 = "eFrOZv6KSZlmLtyPORrD2Low/e7m7HU1WeuT/w8Us7I=";
     };
-    mkPkg = { pkgs, version ? "5415", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, lib, version ? "4.2.0", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
-        # sha256 = {
-        #   aarch64-darwin."5415" = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
-        # }.${pkgs.system}.${version};
+        appName = "LuLu";
+        pname = lib.toLower appName;
       in
-      l.darwin.installDmg {
-        inherit version;
-        sha256 = versions.${system}.${version}.sha256;
-        url = l.forSystem {
-          aarch64-darwin = "https://origin.cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-${version}-macos-clang-arm64.dmg";
+      pkgs.stdenv.mkDerivation {
+        inherit pname version;
+        src = fetchurl {
+          url = "https://github.com/objective-see/LuLu/releases/download/v${version}/LuLu_${version}.dmg";
+          sha256 = versions.${system}.${version}.sha256;
         };
-        appname = "KDEConnect";
-        meta = { source = "https://invent.kde.org/explore/groups"; description = "Enabling communication between all your devices"; homepage = "https://kdeconnect.kde.org/"; };
+        sourceRoot = ".";
+        nativeBuildInputs = [ pkgs.makeWrapper pkgs.undmg ];
+
+        installPhase = ''
+          mkdir -p $out/Applications
+          cp -r *.app $out/Applications
+          # makeWrapper $out/Applications/${appName}.app/Contents/MacOS/${appName} $out/bin/${pname}
+        '';
+
+        meta = with lib; {
+          description = "LuLu is the free open-source macOS firewall";
+          homepage = "https://github.com/objective-see/LuLu";
+          license = licenses.gpl3Only;
+          maintainers = [ ];
+          platforms = platforms.darwin;
+          sourceProvenance = [ sourceTypes.binaryNativeCode ];
+          mainProgram = pname;
+        };
       };
   };
+  lulu-installer = rec {
+    versions = {
+      aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
+    };
+    mkPkg = { pkgs, lib, version ? "4.2.0", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        src = fetchurl {
+          url = "https://github.com/objective-see/LuLu/releases/download/v${version}/LuLu_${version}.dmg";
+          sha256 = versions.${system}.${version}.sha256;
+        };
+        install-script = pkgs.writeText "install-lulu" ''
+          set -euo pipefail # cleanup called on fail
 
+          if [ -d "/Applications/LuLu.app" ]; then
+            installed_version=$(defaults read /Applications/LuLu.app/Contents/Info.plist CFBundleShortVersionString)
+            if [ "${version}" = "$installed_version" ]; then exit 0; fi
+          fi
+          
+          MOUNT_POINT="/tmp/LuLu_Mount_$$"
+          cleanup() {
+            if [ -d "$MOUNT_POINT" ]; then
+              hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
+              rm -rf "$MOUNT_POINT"
+            fi
+          }
+          trap cleanup EXIT
+
+          mkdir -p "$MOUNT_POINT"
+          hdiutil attach "${src}" -mountpoint "$MOUNT_POINT" -nobrowse -quiet
+          sudo cp -R "$MOUNT_POINT/LuLu.app" /Applications/
+        '';
+      in
+      # writeShellScriptBin doesn't expose version to caller -> mkDerivation
+      pkgs.stdenvNoCC.mkDerivation {
+        pname = "install-lulu";
+        inherit version src;
+        dontUnpack = true; # default is undmg
+        sourceRoot = "."; # Prevent unpack errors
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out/bin
+          cat ${install-script} > $out/bin/install-lulu
+          chmod +x $out/bin/install-lulu
+          runHook postInstall
+        '';
+      };
+  };
 }
