@@ -172,7 +172,28 @@ in
   #     meta = { source = "https://github.com/joshkotrous/tome"; description = "AI-native database client that translates natural language into perfect queries"; homepage = "https://tome.lang/"; };
   #   };
 
-  kdeConnect = rec {
+  # kdeConnect = rec {
+  #   versions = {
+  #     aarch64-darwin."5415".sha256 = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
+  #   };
+  #   mkPkg = { pkgs, version ? "5415", system ? pkgs.stdenv.hostPlatform.system, ... }:
+  #     let
+  #       l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+  #       # sha256 = {
+  #       #   aarch64-darwin."5415" = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
+  #       # }.${pkgs.system}.${version};
+  #     in
+  #     l.darwin.installDmg {
+  #       inherit version;
+  #       sha256 = versions.${system}.${version}.sha256;
+  #       url = l.forSystem {
+  #         aarch64-darwin = "https://origin.cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-${version}-macos-clang-arm64.dmg";
+  #       };
+  #       appname = "KDEConnect";
+  #       meta = { source = "https://invent.kde.org/explore/groups"; description = "Enabling communication between all your devices"; homepage = "https://kdeconnect.kde.org/"; };
+  #     };
+  # };
+
     versions = {
       aarch64-darwin."5415".sha256 = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
     };
