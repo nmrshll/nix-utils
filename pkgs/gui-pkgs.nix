@@ -5,9 +5,11 @@ in
 {
   anytype = rec {
     versions = {
-      aarch64-darwin."0.47.3".sha256 = "sha256:1xs52cnr81fzqg4cp7cbvmlnjgi548nv8sxbvdsd4gvl3v09c3qj";
+      aarch64-darwin."0.53.1".sha256 = "0v49qj232mkpx54z99nbmiafkvagkhk2xy8h8yyz95jizklhbh6g";
+      aarch64-darwin."0.52.4".sha256 = "05syxapx4i5qrr2l5f12vs6wn74zixqn2d83mz0lxlhyi7x635kp";
+      aarch64-darwin."0.47.3".sha256 = "1xs52cnr81fzqg4cp7cbvmlnjgi548nv8sxbvdsd4gvl3v09c3qj";
     };
-    mkPkg = { pkgs, version ? "0.47.3", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, version ? "0.53.1", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
         l = builtins // pkgs.callPackage ../utils/utils.nix { };
         url = l.forSystem {
