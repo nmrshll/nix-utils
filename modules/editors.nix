@@ -116,7 +116,7 @@ thisFlake:
       config = {
         inherit bin;
         # packages = scripts // ownPkgs;
-        packages = scripts;
+        expose.packages = scripts;
         devShellParts.buildInputs = (l.attrValues scripts);
         devShellParts.shellHookParts = { configure-editors = bin.configure-editors; };
       };

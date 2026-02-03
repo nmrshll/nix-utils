@@ -84,7 +84,7 @@ thisFlake:
     in
     {
       inherit bin;
-      packages = scripts // { inherit customRust; };
+      expose.packages = scripts // { inherit customRust; };
       pkgs.overlays = [ (import thisFlake.inputs.rust-overlay) ];
 
       devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);

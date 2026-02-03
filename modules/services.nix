@@ -54,6 +54,6 @@ thisFlake:
     in
     {
       inherit bin;
-      packages = scripts;
+      expose.packages = scripts;
     };
 }

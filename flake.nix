@@ -26,9 +26,9 @@
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       imports = [ optionDefModules.all ] ++ (attrValues flakeModules);
 
-
       perSystem = { pkgs, config, ... }: {
-        devShellParts.buildInputs = [ config.packages.openspec ];
+        packages = config.expose.packages;
+        devShellParts.buildInputs = attrValues config.expose.packages;
       };
 
       flake.flakeModules = flakeModules // { all = optionDefModules.all; };

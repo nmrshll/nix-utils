@@ -86,7 +86,7 @@ with builtins; { self, config, pkgs, ... }: {
     in
     {
       inherit bin;
-      packages = scripts;
+      expose.packages = scripts;
       devShellParts.buildInputs = attrValues scripts;
       devShellParts.shellHookParts.dotenv = ''. ${bin.dotenv}'';
     };

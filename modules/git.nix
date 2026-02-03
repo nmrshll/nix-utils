@@ -13,7 +13,7 @@ thisFlake:
       #   echo "Hello from module!"
       # '';
 
-      packages = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+      expose.packages = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
         remote-name = ''
           NB_REMOTES="$(git -C "${wd}" remote | wc -l | tr -d '[:space:]')"
           if [ $NB_REMOTES -eq 1 ]; then

@@ -95,11 +95,51 @@ with builtins; let
       };
   };
 
+  # # WHY: if a flakeModule adds to "packages" output directly, then consumers of the module will also get "packages" polluted.
+  # # This module lets flakeModules add packages to expose as outputs of this flake, but not consumer flakes.
+  # TODO local/exposed version of all outputs
+  flakeModules.exposePkgs = { self, lib, ... }: {
+    config.perSystem = { config, ... }: {
+      options.expose.packages = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.package; default = { }; };
+      # config.packages = config.expose.packages;
+    };
+  };
+
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
   flakeModules.ownPkgs = { self, ... }: {
     perSystem = { pkgs, lib, system, config, ... }:
-      let
-        pkgDefs = (import ../pkgs/editor-pkgs.nix) // (import ../pkgs/service-pkgs.nix) // (import ../pkgs/gui-pkgs.nix);
+      with builtins; let
+        dbgObj = o: trace (toJSON o) o;
+        dbg = x: trace
+          (
+            if builtins.isAttrs x then mapAttrs dbg x
+            else if builtins.isList x then "${map dbg x}"
+            else if builtins.isPath x then "${toString x}"
+            else "${toString x}"
+          )
+          x;
+
+
+        pkgDefs = (import ../pkgs/editor-pkgs.nix)
+          // (import ../pkgs/service-pkgs.nix)
+          // (import ../pkgs/gui-pkgs.nix)
+          // (import ../pkgs/cli-pkgs.nix);
+
+        mkExtraInput = overridePath: defaultSrc:
+          if overridePath != "" && pathExists overridePath
+          then (getFlake overridePath)
+          else getFlake defaultSrc;
+
+        extraInputs =
+          let
+            tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
+          in
+          {
+            # TODO use PAT in URL/env for private repos
+            # tools = trace (tools.sourceInfo) tools;
+            tools = getFlake ("/Users/me/src/me/tools");
+          };
+
 
         # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
         # # (/. + builtins.unsafeDiscardStringContext self.outPath)
@@ -121,12 +161,16 @@ with builtins; let
           )
           (attrNames pkgDefs));
 
-        ownPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs;
+        ownPkgs =
+          (lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
+          # // extraInputs.tools.packages.${system}
+        ;
 
       in
       {
         _module.args.ownPkgs = ownPkgs;
-        packages = ownPkgs;
+        # packages = ownPkgs;
+        expose.packages = ownPkgs;
       };
   };
 
@@ -170,3 +214,4 @@ in
 {
   flakeModules = flakeModules // { all = { imports = (attrValues flakeModules); }; };
 }
+
