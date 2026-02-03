@@ -169,7 +169,6 @@ with builtins; let
       in
       {
         _module.args.ownPkgs = ownPkgs;
-        # packages = ownPkgs;
         expose.packages = ownPkgs;
       };
   };

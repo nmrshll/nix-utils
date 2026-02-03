@@ -2,18 +2,12 @@ thisFlake:
 { config, pkgs, ... }:
 {
   perSystem = { config, pkgs, lib, ... }:
-    let
-      l = lib // builtins;
+    with builtins; let
+      # l = lib // builtins;
+      # sh_use_dbg = ''dbg_var() {  local var_name="$1";  if [ -n "''${!var_name}" ]; then  echo "$var_name=''${!var_name}";  else echo "DBG_VAR: $var_name is not set or is empty"; fi  }'';
+
       wd = "$(git rev-parse --show-toplevel)";
-      sh_use_dbg = ''dbg_var() {  local var_name="$1";  if [ -n "''${!var_name}" ]; then  echo "$var_name=''${!var_name}";  else echo "DBG_VAR: $var_name is not set or is empty"; fi  }'';
-
-    in
-    {
-      # packages.helper = pkgs.writeShellScriptBin "helper" ''
-      #   echo "Hello from module!"
-      # '';
-
-      expose.packages = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+      scripts = mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
         remote-name = ''
           NB_REMOTES="$(git -C "${wd}" remote | wc -l | tr -d '[:space:]')"
           if [ $NB_REMOTES -eq 1 ]; then
@@ -126,5 +120,9 @@ thisFlake:
           git update-index --assume-unchanged "$@"
         '';
       };
+
+    in
+    {
+      expose.packages = scripts;
     };
 }

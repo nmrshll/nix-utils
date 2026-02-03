@@ -74,7 +74,7 @@ with builtins; { self, config, pkgs, ... }: {
 
         # NIX commands
         arr = ''IFS=, read -ra new_arr <<< "$1"; echo "''${new_arr[*]}" '';
-        nshow = ''set -x; nix flake show $(arr $NIX_OVERRIDES)'';
+        nshow = ''set -x; nix flake show --impure --show-trace $(arr $NIX_OVERRIDES)'';
         neval = ''set -x; nix eval .#"$1" --show-trace --refresh $(arr $NIX_OVERRIDES)'';
         attrNames = ''nix eval .#"$1" --apply builtins.attrNames $(arr $NIX_OVERRIDES)'';
         # callerPath = ''echo ${dbg self.outPath}'';

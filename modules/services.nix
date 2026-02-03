@@ -1,13 +1,13 @@
 thisFlake:
 { config, pkgs, ... }: {
   perSystem = { config, pkgs, lib, ... }:
-    let
-      l = lib // builtins;
-      bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") { inherit (pkgs); };
+    with builtins; let
 
-      wd = "$(git rev-parse --show-toplevel)";
+      bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts);
+
       wdname = "$(basename ${wd})";
-      scripts = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+      wd = "$(git rev-parse --show-toplevel)";
+      scripts = mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
         sql-migrate-and-export = ''deps; await_postgres $POSTGRES_PORT; sqlx migrate run; cargo sqlx prepare; '';
         # await_postgres_up = writeScriptBin "await_postgres_up" ''#!/usr/bin/env bash
         #   PORT="''${1:-''${POSTGRES_PORT:-5432}}"

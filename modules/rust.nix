@@ -2,9 +2,9 @@ thisFlake:
 { self, config, pkgs, inputs, ... }: {
   perSystem = { pkgs, config, lib, ... }:
     with builtins; let
-      dbgAttrs = o: (trace (attrNames o) o);
+      # dbgAttrs = o: (trace (attrNames o) o);
       l = lib // builtins;
-      bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
+      bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
       # rust-bin.beta.latest.default
       customRust = pkgs.rust-bin.beta.latest.default.override {

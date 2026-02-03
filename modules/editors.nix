@@ -1,11 +1,10 @@
 thisFlake:
 { config, pkgs, ... }: {
   perSystem = { pkgs, config, lib, ownPkgs, ... }:
-    let
-      l = lib // builtins;
+    with builtins; let
+      # l = lib // builtins;
       # editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
-      bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
-
+      bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
 
 
 
@@ -49,7 +48,7 @@ thisFlake:
       };
 
       wd = "$(git rev-parse --show-toplevel)";
-      scripts = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+      scripts = mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
         configure-editors = ''
           if (code --help | grep -q "Visual Studio Code"); then
             ${bin.configure-vscode}
@@ -58,7 +57,7 @@ thisFlake:
         configure-vscode = ''
           SETTINGS_PATH="${wd}/.vscode/settings.json";
           ORIGINAL_SETTINGS=$(if [[ -f "$SETTINGS_PATH" && $(file --mime "$SETTINGS_PATH") =~ "application/json" ]]; then cat "$SETTINGS_PATH"; else echo "{}"; fi);
-          MERGED_SETTINGS=$(echo "$ORIGINAL_SETTINGS" | ${bin.jq} --argjson new_data '${l.toJSON config.vscode.settings}' '. * $new_data');
+          MERGED_SETTINGS=$(echo "$ORIGINAL_SETTINGS" | ${bin.jq} --argjson new_data '${toJSON config.vscode.settings}' '. * $new_data');
           mkdir -p "$(dirname "$SETTINGS_PATH")";
           echo "$MERGED_SETTINGS" >| "$SETTINGS_PATH";
         '';
@@ -117,7 +116,7 @@ thisFlake:
         inherit bin;
         # packages = scripts // ownPkgs;
         expose.packages = scripts;
-        devShellParts.buildInputs = (l.attrValues scripts);
+        devShellParts.buildInputs = (attrValues scripts);
         devShellParts.shellHookParts = { configure-editors = bin.configure-editors; };
       };
     };
