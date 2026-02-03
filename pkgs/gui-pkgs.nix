@@ -194,42 +194,43 @@ in
   #     };
   # };
 
-  lulu = rec {
-    versions = {
-      aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
-      aarch64-darwin."3.1.5".sha256 = "eFrOZv6KSZlmLtyPORrD2Low/e7m7HU1WeuT/w8Us7I=";
-    };
-    mkPkg = { pkgs, lib, version ? "4.2.0", system ? pkgs.stdenv.hostPlatform.system, ... }:
-      let
-        appName = "LuLu";
-        pname = lib.toLower appName;
-      in
-      pkgs.stdenv.mkDerivation {
-        inherit pname version;
-        src = fetchurl {
-          url = "https://github.com/objective-see/LuLu/releases/download/v${version}/LuLu_${version}.dmg";
-          sha256 = versions.${system}.${version}.sha256;
-        };
-        sourceRoot = ".";
-        nativeBuildInputs = [ pkgs.makeWrapper pkgs.undmg ];
+  # lulu = rec {
+  #   versions = {
+  #     aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
+  #     aarch64-darwin."3.1.5".sha256 = "eFrOZv6KSZlmLtyPORrD2Low/e7m7HU1WeuT/w8Us7I=";
+  #   };
+  #   mkPkg = { pkgs, lib, version ? "4.2.0", system ? pkgs.stdenv.hostPlatform.system, ... }:
+  #     let
+  #       appName = "LuLu";
+  #       pname = lib.toLower appName;
+  #     in
+  #     pkgs.stdenv.mkDerivation {
+  #       inherit pname version;
+  #       src = fetchurl {
+  #         url = "https://github.com/objective-see/LuLu/releases/download/v${version}/LuLu_${version}.dmg";
+  #         sha256 = versions.${system}.${version}.sha256;
+  #       };
+  #       sourceRoot = ".";
+  #       nativeBuildInputs = [ pkgs.makeWrapper pkgs.undmg ];
 
-        installPhase = ''
-          mkdir -p $out/Applications
-          cp -r *.app $out/Applications
-          # makeWrapper $out/Applications/${appName}.app/Contents/MacOS/${appName} $out/bin/${pname}
-        '';
+  #       installPhase = ''
+  #         mkdir -p $out/Applications
+  #         cp -r *.app $out/Applications
+  #         # makeWrapper $out/Applications/${appName}.app/Contents/MacOS/${appName} $out/bin/${pname}
+  #       '';
 
-        meta = with lib; {
-          description = "LuLu is the free open-source macOS firewall";
-          homepage = "https://github.com/objective-see/LuLu";
-          license = licenses.gpl3Only;
-          maintainers = [ ];
-          platforms = platforms.darwin;
-          sourceProvenance = [ sourceTypes.binaryNativeCode ];
-          mainProgram = pname;
-        };
-      };
-  };
+  #       meta = with lib; {
+  #         description = "LuLu is the free open-source macOS firewall";
+  #         homepage = "https://github.com/objective-see/LuLu";
+  #         license = licenses.gpl3Only;
+  #         maintainers = [ ];
+  #         platforms = platforms.darwin;
+  #         sourceProvenance = [ sourceTypes.binaryNativeCode ];
+  #         mainProgram = pname;
+  #       };
+  #     };
+  # };
+
   lulu-installer = rec {
     versions = {
       aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
