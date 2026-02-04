@@ -1,8 +1,8 @@
 thisFlake:
-{ self, config, pkgs, inputs, ... }: {
-  perSystem = { pkgs, config, l, lib, ... }:
+{ self, pkgs, inputs, ... }: {
+  perSystem = { pkgs, config, l, lib, ownPkgs, ... }:
     with builtins; let
-      dbg = x: (trace x) x;
+      # dbg = x: (trace x) x;
 
       # l = lib // builtins;
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
@@ -28,17 +28,24 @@ thisFlake:
       relPath = p: (/. + builtins.unsafeDiscardStringContext "${self.outPath + "${p}"}");
       commonArgs = { inherit src buildInputs; strictDeps = true; };
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-      perCrateArgs = pname: {
-        inherit pname cargoArtifacts;
-        version = (craneLib.crateNameFromCargoToml { inherit src; }).version;
-        cargoExtraArgs = "-p ${pname}";
-        src = l.fileset.toSource {
-          root = (/. + builtins.unsafeDiscardStringContext self.outPath);
-          fileset = l.fileset.unions [ (craneLib.fileset.commonCargoSources (relPath "/${pname}")) (relPath "/Cargo.toml") (relPath "/Cargo.lock") ];
+      perCrateArgs = path:
+        let crateToml = fromTOML (readFile (self.outPath + "/${path}/Cargo.toml"));
+        in rec {
+          inherit cargoArtifacts;
+          pname = crateToml.package.name;
+          version = crateToml.package.version;
+          cargoExtraArgs = "-p ${pname}";
+          src = l.fileset.toSource {
+            root = (/. + builtins.unsafeDiscardStringContext self.outPath);
+            fileset = l.fileset.unions [
+              (craneLib.fileset.commonCargoSources (relPath "/${path}"))
+              (relPath "/Cargo.toml")
+              (relPath "/Cargo.lock")
+            ];
+          };
+          doCheck = false; # we disable tests since we'll run them all via cargo-nextest
         };
-        doCheck = false; # we disable tests since we'll run them all via cargo-nextest
-      };
-      buildCrate = pname: craneLib.buildPackage (perCrateArgs pname);
+      buildCrate = path: craneLib.buildPackage (perCrateArgs path);
 
 
 
@@ -84,7 +91,8 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
-        # cargo-wadd = ''${config.ownPkgs.cargo-wadd}/bin/cargo-wadd $@'';
+        # cargo-wadd = ''${(l.dbg ownPkgs.tools).cargo-wadd}/bin/cargo-wadd $@'';
+        cadd = ''cargo add $(packages) $@'';
 
         build = ''nix build . --show-trace '';
         # run = ''cargo run $(packages) $@ '';
@@ -94,7 +102,6 @@ thisFlake:
         utest = ''set -x; cargo nextest run $(packages) --nocapture "$@" -- $SINGLE_TEST '';
         packages = ''if [ -n "$CRATE" ]; then echo "-p $CRATE"; else echo "--workspace"; fi '';
         ptest = ''package="$1"; shift; cargo nextest run -p "$package" --nocapture "$@" -- "$SINGLE_TEST" '';
-        cadd = ''cargo add $(packages) $@'';
       };
 
       env = {
@@ -111,20 +118,14 @@ thisFlake:
       options.rust.buildEnv = l.mkOption { type = l.types.attrs; default = { }; };
       # Internal options
       options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
-      # options.rust.crates = l.mkOption {
-      #   type = lib.types.lazyAttrsOf (lib.types.oneOf [
-      #     (lib.types.lazyAttrsOf lib.types.package)
-      #     lib.types.package
-      #   ]);
-      #   default = { };
-      # };
 
       config = {
         inherit bin;
         rust.crates = crates;
         checks = tests;
         # legacyPackages = { inherit crates; };
-        packages = l.mapAttrs' (name: value: { name = "crate-${name}"; inherit value; }) crates;
+        # packages = l.mapAttrs' (name: value: { name = "crate-${name}"; inherit value; }) crates;
+        packages = crates;
 
         expose.packages = scripts // { inherit customRust; };
         pkgs.overlays = [ (import thisFlake.inputs.rust-overlay) ];
