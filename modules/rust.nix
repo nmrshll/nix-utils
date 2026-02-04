@@ -91,7 +91,7 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
-        # cargo-wadd = ''${(l.dbg ownPkgs.tools).cargo-wadd}/bin/cargo-wadd $@'';
+        cwadd = ''${ownPkgs.tools.cargo-wadd}/bin/cargo-wadd $@'';
         cadd = ''cargo add $(packages) $@'';
 
         build = ''nix build . --show-trace '';
