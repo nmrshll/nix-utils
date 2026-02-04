@@ -93,11 +93,11 @@ with builtins; let
   };
 
   # # WHY: if a flakeModule adds to "packages" output directly, then consumers of the module will also get "packages" polluted.
-  # # This module lets flakeModules add packages to expose as outputs of this flake, but not consumer flakes.
+  # # This module lets flakeModules add packages to exposej as outputs of this flake, but not consumer flakes.
   # TODO local/exposed version of all outputs
-  flakeModules.exposePkgs = { self, lib, ... }: {
-    config.perSystem = { config, ... }: {
-      options.expose.packages = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.package; default = { }; };
+  flakeModules.exposePkgs = { self, ... }: {
+    config.perSystem = { config, l, ... }: {
+      options.expose.packages = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
     };
   };
 
@@ -105,9 +105,6 @@ with builtins; let
   flakeModules.ownPkgs = { self, ... }: {
     perSystem = { pkgs, lib, system, config, ... }:
       with builtins; let
-
-
-
         pkgDefs = (import ../pkgs/editor-pkgs.nix)
           // (import ../pkgs/service-pkgs.nix)
           // (import ../pkgs/gui-pkgs.nix)
@@ -124,7 +121,6 @@ with builtins; let
           in
           {
             # TODO use PAT in URL/env for private repos
-            # tools = trace (tools.sourceInfo) tools;
             tools = getFlake ("/Users/me/src/me/tools");
           };
 
@@ -151,7 +147,7 @@ with builtins; let
 
         ownPkgs =
           (lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
-          # // extraInputs.tools.packages.${system}
+          // { tools = extraInputs.tools.packages.${system}; }
         ;
 
       in
