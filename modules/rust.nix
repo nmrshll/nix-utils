@@ -1,9 +1,10 @@
 thisFlake:
 { self, config, pkgs, inputs, ... }: {
-  perSystem = { pkgs, config, lib, ... }:
+  perSystem = { pkgs, config, l, lib, ... }:
     with builtins; let
-      # dbgAttrs = o: (trace (attrNames o) o);
-      l = lib // builtins;
+      dbg = x: (trace x) x;
+
+      # l = lib // builtins;
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
       # rust-bin.beta.latest.default
@@ -13,7 +14,7 @@ thisFlake:
       };
       craneLib = thisFlake.inputs.crane.mkLib pkgs;
 
-      buildInputs = [
+      buildInputs = config.rust.buildInputs ++ [
         customRust
       ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
         pkgs.apple-sdk_15
@@ -22,7 +23,7 @@ thisFlake:
       devInputs = with pkgs; [
         cargo-nextest
       ];
-      # src = craneLib.cleanCargoSource ./.;
+
       src = craneLib.cleanCargoSource self.outPath;
       relPath = p: (/. + builtins.unsafeDiscardStringContext "${self.outPath + "${p}"}");
       commonArgs = { inherit src buildInputs; strictDeps = true; };
@@ -31,15 +32,33 @@ thisFlake:
         inherit pname cargoArtifacts;
         version = (craneLib.crateNameFromCargoToml { inherit src; }).version;
         cargoExtraArgs = "-p ${pname}";
-        src = lib.fileset.toSource {
+        src = l.fileset.toSource {
           root = (/. + builtins.unsafeDiscardStringContext self.outPath);
-          fileset = lib.fileset.unions [ (craneLib.fileset.commonCargoSources (relPath "/crates/${pname}")) (relPath "/Cargo.toml") (relPath "/Cargo.lock") ];
+          fileset = l.fileset.unions [ (craneLib.fileset.commonCargoSources (relPath "/${pname}")) (relPath "/Cargo.toml") (relPath "/Cargo.lock") ];
         };
         doCheck = false; # we disable tests since we'll run them all via cargo-nextest
       };
       buildCrate = pname: craneLib.buildPackage (perCrateArgs pname);
 
-      tests = {
+
+
+      workspaceMembers =
+        if pathExists (self.outPath + "/Cargo.toml") then (fromTOML (readFile (self.outPath + "/Cargo.toml"))).workspace.members or [ ]
+        else [ ];
+      expandWsMember = member:
+        if l.strings.hasSuffix "/*" member then
+          let
+            baseDir = l.strings.removeSuffix "/*" member;
+            subDirs = l.filterAttrs (name: type: type == "directory") (readDir (self.outPath + "/${baseDir}"));
+          in
+          map (name: "${baseDir}/${name}") (attrNames subDirs)
+        else
+          [ member ];
+
+      validCratePaths = filter (crate: pathExists (relPath "/${crate}/Cargo.toml")) (concatLists (map expandWsMember workspaceMembers));
+      crates = listToAttrs (map (path: { name = baseNameOf path; value = buildCrate path; }) validCratePaths);
+
+      tests = l.optionalAttrs (pathExists (self.outPath + "/Cargo.toml")) {
         clippy = craneLib.cargoClippy (commonArgs // {
           inherit cargoArtifacts;
           cargoClippyExtraArgs = "--all-targets -- --deny warnings";
@@ -65,6 +84,7 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
+        # cargo-wadd = ''${config.ownPkgs.cargo-wadd}/bin/cargo-wadd $@'';
 
         build = ''nix build . --show-trace '';
         # run = ''cargo run $(packages) $@ '';
@@ -78,38 +98,58 @@ thisFlake:
       };
 
       env = {
-        RUST_BACKTRACE = 1;
+        RUST_BACKTRACE = "full";
       };
 
     in
     {
-      inherit bin;
-      expose.packages = scripts // { inherit customRust; };
-      pkgs.overlays = [ (import thisFlake.inputs.rust-overlay) ];
+      # User input options
+      options.rust.targets = l.mkOption { type = l.types.listOf l.types.str; default = [ ]; };
+      options.rust.extensions = l.mkOption { type = l.types.listOf l.types.str; default = [ ]; };
+      options.rust.toolchain = l.mkOption { type = l.types.package; default = customRust; };
+      options.rust.buildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
+      options.rust.buildEnv = l.mkOption { type = l.types.attrs; default = { }; };
+      # Internal options
+      options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
+      # options.rust.crates = l.mkOption {
+      #   type = lib.types.lazyAttrsOf (lib.types.oneOf [
+      #     (lib.types.lazyAttrsOf lib.types.package)
+      #     lib.types.package
+      #   ]);
+      #   default = { };
+      # };
 
-      devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);
-      devShellParts.env = env;
-      lib' = {
-        inherit craneLib;
-        customRust = { inherit buildCrate; };
-      };
+      config = {
+        inherit bin;
+        rust.crates = crates;
+        checks = tests;
+        # legacyPackages = { inherit crates; };
+        packages = l.mapAttrs' (name: value: { name = "crate-${name}"; inherit value; }) crates;
 
-      vscode.settings = {
-        "rust-analyzer.server.extraEnv" = {
-          CARGO = "${customRust}/bin/cargo";
-          RUSTC = "${customRust}/bin/rustc";
-          RUSTFMT = "${customRust}/bin/rustfmt";
-          # SQLX_OFFLINE = 1;
-          # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
-        };
-        "rust-analyzer.server.path" = "${customRust}/bin/rust-analyzer";
-        "rust-analyzer.runnables.command" = "${customRust}/bin/cargo";
-        "rust-analyzer.runnables.extraEnv" = {
-          CARGO = "${customRust}/bin/cargo";
-          RUSTC = "${customRust}/bin/rustc";
-          RUSTFMT = "${customRust}/bin/rustfmt";
-          # SQLX_OFFLINE = 1;
-          # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
+        expose.packages = scripts // { inherit customRust; };
+        pkgs.overlays = [ (import thisFlake.inputs.rust-overlay) ];
+
+        devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);
+        devShellParts.env = env;
+        l = { inherit craneLib; customRust = { inherit buildCrate; }; };
+
+        vscode.settings = {
+          "rust-analyzer.server.extraEnv" = {
+            CARGO = "${customRust}/bin/cargo";
+            RUSTC = "${customRust}/bin/rustc";
+            RUSTFMT = "${customRust}/bin/rustfmt";
+            # SQLX_OFFLINE = 1;
+            # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
+          };
+          "rust-analyzer.server.path" = "${customRust}/bin/rust-analyzer";
+          "rust-analyzer.runnables.command" = "${customRust}/bin/cargo";
+          "rust-analyzer.runnables.extraEnv" = {
+            CARGO = "${customRust}/bin/cargo";
+            RUSTC = "${customRust}/bin/rustc";
+            RUSTFMT = "${customRust}/bin/rustfmt";
+            # SQLX_OFFLINE = 1;
+            # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
+          };
         };
       };
     };
