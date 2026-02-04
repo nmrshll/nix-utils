@@ -9,10 +9,8 @@
 
   outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, ... }:
     with builtins; let
-      # dbg = o: (trace (toJSON o) o);
-      # dbgAttrs = o: (trace (attrNames o) o);
-
       optionDefModules = (import ./modules/optionDefs.nix).flakeModules;
+      # NOTE: importApply injects thisFlake into module args (to distinguish from caller flake)
       flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
         cli-tools = ./modules/cli-tools.nix;
         git = ./modules/git.nix;
