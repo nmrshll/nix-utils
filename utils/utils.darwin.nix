@@ -1,7 +1,7 @@
 { pkgs, ... }:
 with builtins; let
-  # throwSystem = throw "Unsupported system: ${pkgs.system}";
-  # forSystem = perSystemAttrs: perSystemAttrs.${pkgs.system} or throwSystem;
+  # throwSystem = throw "Unsupported system: ${pkgs.stdenv.hostPlatform.system}";
+  # forSystem = perSystemAttrs: perSystemAttrs.${pkgs.stdenv.hostPlatform.system} or throwSystem;
   # slugify = str: pkgs.lib.toLower (replaceStrings [ " " ] [ "-" ] str);
   l = builtins // (pkgs.callPackage ./utils.nix { });
 

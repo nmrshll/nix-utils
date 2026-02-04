@@ -1,8 +1,5 @@
-with builtins; let
-  dbg = o: trace (toJSON o) o;
-
-in
 {
+
   anytype = rec {
     versions = {
       aarch64-darwin."0.53.1".sha256 = "0v49qj232mkpx54z99nbmiafkvagkhk2xy8h8yyz95jizklhbh6g";
@@ -105,10 +102,10 @@ in
     mkPkg = { pkgs, version ? "4.1.4", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
         l = builtins // (pkgs.callPackage ../utils/utils.nix { });
-        # versionHashes = { aarch64-darwin."4.1.4" = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b"; }.${pkgs.system};
+        # versionHashes = { aarch64-darwin."4.1.4" = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b"; }.${pkgs.stdenv.hostPlatform.system};
         url = {
           aarch64-darwin = "https://github.com/johnste/finicky/releases/download/v${version}/Finicky.dmg";
-        }.${pkgs.system};
+        }.${pkgs.stdenv.hostPlatform.system};
       in
       l.darwin.installDmg {
         inherit url version;
@@ -127,7 +124,7 @@ in
         l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         # versions = {
         #   aarch64-darwin."241012ess7yxs0e" = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
-        # }.${pkgs.system}.${version};
+        # }.${pkgs.stdenv.hostPlatform.system}.${version};
       in
       l.darwin.installDmg {
         inherit version;
@@ -143,10 +140,10 @@ in
   #   let
   #     versionHashes = {
   #       aarch64-darwin."0.9.0" = "sha256:0ii3mgknaxyrk7xamzn6sqp2828v2rsq8w38s4yqrkfhs53aclq6";
-  #     }.${pkgs.system};
+  #     }.${pkgs.stdenv.hostPlatform.system};
   #     url = {
   #       aarch64-darwin = "https://github.com/heyito/ito/releases/download/v${version}/Ito-Installer.dmg";
-  #     }.${pkgs.system};
+  #     }.${pkgs.stdenv.hostPlatform.system};
   #   in
   #   localLib.installDmg {
   #     inherit url version;
@@ -160,10 +157,10 @@ in
   #   let
   #     versionHashes = {
   #       aarch64-darwin."0.2.0" = "sha256:1z1rxb0xavi9idf100i7mimsrgkivyh860818yy9zbryy2af2dv8";
-  #     }.${pkgs.system};
+  #     }.${pkgs.stdenv.hostPlatform.system};
   #     url = {
   #       aarch64-darwin = "https://github.com/joshkotrous/tome/releases/download/v${version}/tome-mac-arm64.dmg";
-  #     }.${pkgs.system};
+  #     }.${pkgs.stdenv.hostPlatform.system};
   #   in
   #   localLib.installDmg {
   #     inherit url version;
@@ -181,7 +178,7 @@ in
   #       l = builtins // (pkgs.callPackage ../utils/utils.nix { });
   #       # sha256 = {
   #       #   aarch64-darwin."5415" = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
-  #       # }.${pkgs.system}.${version};
+  #       # }.${pkgs.stdenv.hostPlatform.system}.${version};
   #     in
   #     l.darwin.installDmg {
   #       inherit version;
@@ -237,7 +234,7 @@ in
     };
     mkPkg = { pkgs, lib, version ? "4.2.0", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        src = fetchurl {
+        src = builtins.fetchurl {
           url = "https://github.com/objective-see/LuLu/releases/download/v${version}/LuLu_${version}.dmg";
           sha256 = versions.${system}.${version}.sha256;
         };

@@ -1,5 +1,5 @@
 with builtins; let
-  dbg = x: trace (toJSON x) x;
+
 
   # flakeModules.example1 = { withSystem, ... }: {
   #   # flake.nixosModules.default = { pkgs, ... }: {
@@ -53,22 +53,19 @@ with builtins; let
         file = ./optionDefs.nix;
       })
     ];
-    # _file = ./optionDefs.nix;
     # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
-    config = {
-      # lib = config.lib;
-      perSystem = { lib, config, ... }: {
-        # _module.args.lib = lib // config.lib;
-        # _module.args.lib = { };
-        # options.lib = option;
-        options.lib' = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-        config = {
-          _module.args.lib' = (config.lib');
-          lib = config.lib';
-        };
-        # config.bin = config.bin;
+
+    # lib = config.lib;
+    config.perSystem = { pkgs, lib, config, ... }: {
+      # _module.args.lib = lib // config.lib;
+      options.l = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+      config = {
+        _module.args.l = (pkgs.callPackage ../utils/utils.nix { }) // (config.l);
+        lib = config.l;
       };
+      # config.bin = config.bin;
     };
+
   };
 
   # This lets any modules add overlays or extra packages to the pkgs argument.
@@ -101,7 +98,6 @@ with builtins; let
   flakeModules.exposePkgs = { self, lib, ... }: {
     config.perSystem = { config, ... }: {
       options.expose.packages = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.package; default = { }; };
-      # config.packages = config.expose.packages;
     };
   };
 
@@ -109,15 +105,7 @@ with builtins; let
   flakeModules.ownPkgs = { self, ... }: {
     perSystem = { pkgs, lib, system, config, ... }:
       with builtins; let
-        dbgObj = o: trace (toJSON o) o;
-        dbg = x: trace
-          (
-            if builtins.isAttrs x then mapAttrs dbg x
-            else if builtins.isList x then "${map dbg x}"
-            else if builtins.isPath x then "${toString x}"
-            else "${toString x}"
-          )
-          x;
+
 
 
         pkgDefs = (import ../pkgs/editor-pkgs.nix)
@@ -175,38 +163,33 @@ with builtins; let
 
 
   flakeModules.devshell = { lib, pkgs, options, ... }: {
-    perSystem = { lib, pkgs, config, options, ... }:
-      # let
-      #   shellHookParts = dbg (attrValues config.devShellParts.shellHookParts);
-      #   shp_joined = dbg (lib.concatStringsSep "\n" shellHookParts);
-      # in
-      {
-        options = {
-          devShellParts = {
-            buildInputs = lib.mkOption {
-              type = lib.types.listOf lib.types.package;
-              default = (attrValues config.packages);
-              description = "Packages to add to the dev shell environment.";
-            };
-            shellHookParts = lib.mkOption {
-              type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.lines lib.types.str ]);
-              default = { };
-              description = "Named lines to add to the shell hook script.";
-            };
-            env = lib.mkOption {
-              type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.str lib.types.int ]);
-              default = { };
-              description = "Environment variables to set in the dev shell.";
-            };
+    perSystem = { lib, pkgs, config, options, ... }: {
+      options = {
+        devShellParts = {
+          buildInputs = lib.mkOption {
+            type = lib.types.listOf lib.types.package;
+            default = (attrValues config.packages);
+            description = "Packages to add to the dev shell environment.";
+          };
+          shellHookParts = lib.mkOption {
+            type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.lines lib.types.str ]);
+            default = { };
+            description = "Named lines to add to the shell hook script.";
+          };
+          env = lib.mkOption {
+            type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.str lib.types.int ]);
+            default = { };
+            description = "Environment variables to set in the dev shell.";
           };
         };
-
-        config.devShells.default = lib.mkDefault (pkgs.mkShell {
-          env = config.devShellParts.env;
-          buildInputs = config.devShellParts.buildInputs;
-          shellHook = lib.concatStringsSep "\n" (attrValues config.devShellParts.shellHookParts);
-        });
       };
+
+      config.devShells.default = lib.mkDefault (pkgs.mkShell {
+        env = config.devShellParts.env;
+        buildInputs = config.devShellParts.buildInputs;
+        shellHook = lib.concatStringsSep "\n" (attrValues config.devShellParts.shellHookParts);
+      });
+    };
   };
 
 in

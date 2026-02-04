@@ -31,8 +31,8 @@
     };
     mkPkg = { pkgs, version ? "1.2.5-stable", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        sysShort = { aarch64-darwin = "darwin"; x86_64-linux = "linux"; }.${pkgs.system};
-        sysLong = { aarch64-darwin = "darwin_arm64"; x86_64-linux = "linux-x64"; }.${pkgs.system};
+        sysShort = { aarch64-darwin = "darwin"; x86_64-linux = "linux"; }.${pkgs.stdenv.hostPlatform.system};
+        sysLong = { aarch64-darwin = "darwin_arm64"; x86_64-linux = "linux-x64"; }.${pkgs.stdenv.hostPlatform.system};
       in
       pkgs.stdenv.mkDerivation {
         inherit version;

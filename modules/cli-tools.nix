@@ -2,8 +2,6 @@ thisFlake:
 with builtins; { self, config, pkgs, ... }: {
   perSystem = { config, pkgs, lib, ... }:
     let
-      dbg = o: (trace (toJSON o) o);
-      dbgAttrs = o: (trace (attrNames o) o);
       l = lib // builtins;
       bin = l.mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) tmux; });
 
@@ -74,14 +72,14 @@ with builtins; { self, config, pkgs, ... }: {
 
         # NIX commands
         arr = ''IFS=, read -ra new_arr <<< "$1"; echo "''${new_arr[*]}" '';
-        nshow = ''set -x; nix flake show --impure --show-trace $(arr $NIX_OVERRIDES)'';
-        neval = ''set -x; nix eval .#"$1" --show-trace --refresh $(arr $NIX_OVERRIDES)'';
+        nshow = ''set -x; nix flake show --impure --show-trace --refresh --no-eval-cache $(arr $NIX_OVERRIDES)'';
+        neval = ''set -x; nix eval .#"$1" --show-trace --refresh --no-eval-cache $(arr $NIX_OVERRIDES)'';
         attrNames = ''nix eval .#"$1" --apply builtins.attrNames $(arr $NIX_OVERRIDES)'';
         # callerPath = ''echo ${dbg self.outPath}'';
         # somePath = ''ls ${./.}'';
         nfresh = ''nix flake update . $(arr $NIX_OVERRIDES)'';
         ndev = ''nix develop . --show-trace $(arr $NIX_OVERRIDES)'';
-        nup = ''set -x; nix flake update $(arr $NIX_OVERRIDES)'';
+        nup = ''set -x; nix flake update --show-trace --refresh --no-eval-cache $(arr $NIX_OVERRIDES)'';
       };
     in
     {

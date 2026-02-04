@@ -113,7 +113,7 @@
         #   x86_64-linux = { inherit url; sha = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06"; };
         # };
       in
-      if pkgs.system == "aarch64-darwin" then
+      if pkgs.stdenv.hostPlatform.system == "aarch64-darwin" then
         (l.darwin.installDmg {
           inherit url version;
           sha256 = versions.${system}.${version}.sha256;
@@ -140,7 +140,7 @@
         #     x86_64-linux = { inherit url; sha = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06"; };
         #   };
       in
-      if pkgs.system == "aarch64-darwin" then
+      if pkgs.stdenv.hostPlatform.system == "aarch64-darwin" then
         (l.darwin.installDmg {
           inherit url version;
           sha256 = versions.${system}.${version}.sha256;
