@@ -97,10 +97,11 @@ thisFlake:
         build = ''nix build . --show-trace '';
         # run = ''cargo run $(packages) $@ '';
         run = ''cargo run $@ '';
-        prun = ''cargo run -p $@ '';
+        prun = ''cargo run -p "''${@:-$CURRENT_CRATE}" '';
+        pbuild = ''cargo build -p "''${@:-$CURRENT_CRATE}" '';
         # utest = ''cargo nextest run --workspace --nocapture -- $SINGLE_TEST '';
         utest = ''set -x; cargo nextest run $(packages) --nocapture "$@" -- $SINGLE_TEST '';
-        packages = ''if [ -n "$CRATE" ]; then echo "-p $CRATE"; else echo "--workspace"; fi '';
+        packages = ''if [ -n "$CURRENT_CRATE" ]; then echo "-p $CURRENT_CRATE"; else echo "--workspace"; fi '';
         ptest = ''package="$1"; shift; cargo nextest run -p "$package" --nocapture "$@" -- "$SINGLE_TEST" '';
       };
 
