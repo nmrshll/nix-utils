@@ -7,8 +7,6 @@ thisFlake:
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs) jq; });
 
 
-
-
       nuWd = "(git rev-parse --show-toplevel)";
       # TODO if attrs, then mapAttrs, but if one element, then just transform
       mkNuScripts = pkgs.lib.mapAttrs (name: text:
@@ -117,7 +115,7 @@ thisFlake:
         # packages = scripts // ownPkgs;
         expose.packages = scripts;
         devShellParts.buildInputs = (attrValues scripts);
-        devShellParts.shellHookParts = { configure-editors = bin.configure-editors; };
+        devShellParts.shellHookParts.configure-editors = bin.configure-editors;
       };
     };
 }
