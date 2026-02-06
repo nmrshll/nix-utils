@@ -1,29 +1,4 @@
-# with builtins; let
-#   dbg = o: trace (toJSON o) o;
-
-#   # isImpure = builtins ? currentTime;
-#   # flakePath = getEnv "OVERRIDE_INPUT_TOOLS";
-
-#   mkExtraInput = overridePath: defaultSrc:
-#     if overridePath != "" && pathExists overridePath
-#     then getFlake overridePath
-#     else getFlake defaultSrc;
-
-#   extraInputs = mapAttrs (n: f: getFlake f) {
-#     # TODO use PAT for private repos
-#     # tools = mkExtraInput "/Users/me/src/me/tools" "github:owner/repo" ;
-#     # tools = mkExtraInput "/Users/me/src/me/tools" "git+https://gitlab.com/group/project.git?ref=main";
-#     tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
-#     # tools = let localPath = "/Users/me/src/me/tools"; in localPath
-#     # if pathExists (localPath + "/flake.nix") then localPath
-#     # else
-#     #   fetchGit { url = "https://gitlab.com/nmrshll/tools.git"; ref = "main"; allRefs = true; };
-#   };
-# in
-
-{
-  # cargo-wadd = (dbg extraInputs.tools).packages.cargo-wadd;
-
+with builtins; {
 
   atlassian-cli = rec {
     versions = {
@@ -48,4 +23,38 @@
         meta = { description = "Atlassian CLI"; homepage = "https://acli.atlassian.com/"; };
       };
   };
+
+  xcode = rec {
+    versions = {
+      aarch64-darwin."26.2".sha256 = "0lmmyq12c3pkhs6cwf9v5pna1rvn7h8idxq0i78yh7v47ia1vwvd";
+    };
+    mkPkg = { pkgs, version ? "26.2", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        xip = fetchurl {
+          url = "https://huggingface.co/datasets/nmarshall/nix-install-files/resolve/main/files/Xcode_${version}_Apple_silicon.xip?download=true";
+          sha256 = versions.${system}.${version}.sha256;
+          name = "Xcode_${version}_Apple_silicon.xip";
+        };
+      in
+      pkgs.stdenv.mkDerivation {
+        pname = "XCode.app";
+        inherit version;
+        src = xip;
+
+        dontUnpack = true;
+        buildPhase = ''
+          ${pkgs.xar}/bin/xar -xf ${xip}
+          ${pkgs.pbzx}/bin/pbzx -n Content | ${pkgs.cpio}/bin/cpio -i
+          rm Metadata Content
+          ${pkgs.rcodesign}/bin/rcodesign verify Xcode.app/Contents/MacOS/Xcode
+        '';
+        installPhase = ''mv Xcode.app $out'';
+
+        meta = {
+          description = "Automatically extracted Xcode from xip";
+          platforms = pkgs.lib.platforms.darwin;
+        };
+      };
+  };
+
 }
