@@ -108,7 +108,8 @@ with builtins; let
         pkgDefs = (import ../pkgs/editor-pkgs.nix)
           // (import ../pkgs/service-pkgs.nix)
           // (import ../pkgs/gui-pkgs.nix)
-          // (import ../pkgs/cli-pkgs.nix);
+          // (import ../pkgs/cli-pkgs.nix)
+          // (import ../pkgs/libs-pkgs.nix);
 
         mkExtraInput = overridePath: defaultSrc:
           if overridePath != "" && pathExists overridePath
@@ -139,16 +140,19 @@ with builtins; let
                   value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib version; });
                 })
                 (attrNames pkgDef.versions.${system} or { }));
-              defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); };
+              defaultPkg =
+                if (hasAttr system pkgDef.versions) then {
+                  ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; });
+                } else { };
             in
             versionedPkgs // defaultPkg
           )
           (attrNames pkgDefs));
 
-        ownPkgs =
+        ownPkgs = lib.filterAttrs (n: v: v != null) (
           (lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
-          // { tools = extraInputs.tools.packages.${system}; }
-        ;
+          // { tools = extraInputs.tools.packages.${system} or { }; }
+        );
 
       in
       {
@@ -167,6 +171,7 @@ with builtins; let
             default = (attrValues config.packages);
             description = "Packages to add to the dev shell environment.";
           };
+          # TODO rename to shellHooks
           shellHookParts = lib.mkOption {
             type = lib.types.lazyAttrsOf (lib.types.oneOf [ lib.types.lines lib.types.str ]);
             default = { };
