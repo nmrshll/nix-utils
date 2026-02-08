@@ -141,9 +141,9 @@ with builtins; let
                 })
                 (attrNames pkgDef.versions.${system} or { }));
               defaultPkg =
-                if (hasAttr system pkgDef.versions) then {
-                  ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; });
-                } else { };
+                if pkgDef ? versions.${system} || !(pkgDef?versions)
+                then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); }
+                else { };
             in
             versionedPkgs // defaultPkg
           )
