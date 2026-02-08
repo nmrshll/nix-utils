@@ -25,8 +25,7 @@
       imports = [ optionDefModules.all ] ++ (attrValues flakeModules);
 
       perSystem = { pkgs, config, l, ... }: {
-        packages = config.expose.packages;
-        devShellParts.buildInputs = (l.flatListPkgs config.expose.packages);
+        packages = l.flatMapPkgs config.expose.packages;
       };
 
       flake.flakeModules = flakeModules // { all = optionDefModules.all; };
