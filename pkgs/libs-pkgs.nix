@@ -13,38 +13,38 @@ with builtins; rec {
     });
   };
 
-  # install-xcode.mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
-  #   let
-  #     xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
-  #     xcode_app_versions = {
-  #       "26.2_Apple_silicon".sha256 = "YxMVppJwRzTA6xWOILxVjLdl0bNmtZSifG/KQx6inRE=";
-  #     };
-  #   in
-  #   pkgs.writeShellScriptBin "install-xcode" ''
-  #     XCODE_APP_SHA256="${xcode_app_versions.${version}.sha256}"
-  #     XCODE_APP_NAME="Xcode.app"
-  #     XCODE_APP_STORE_PATH_EXPECTED=$(nix-store --print-fixed-path --recursive sha256 "$XCODE_APP_SHA256" "$XCODE_APP_NAME")
-  #     DEV_DIR="$XCODE_APP_STORE_PATH_EXPECTED/Contents/Developer"
-  #     WD=$(mktemp -d)
-  #     cd "$WD"
+  install-xcode.mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
+    let
+      xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
+      xcode_app_versions = {
+        "26.2_Apple_silicon".sha256 = "YxMVppJwRzTA6xWOILxVjLdl0bNmtZSifG/KQx6inRE=";
+      };
+    in
+    pkgs.writeShellScriptBin "install-xcode" ''
+      XCODE_APP_SHA256="${xcode_app_versions.${version}.sha256}"
+      XCODE_APP_NAME="Xcode.app"
+      XCODE_APP_STORE_PATH_EXPECTED=$(nix-store --print-fixed-path --recursive sha256 "$XCODE_APP_SHA256" "$XCODE_APP_NAME")
+      DEV_DIR="$XCODE_APP_STORE_PATH_EXPECTED/Contents/Developer"
+      WD=$(mktemp -d)
+      cd "$WD"
 
-  #     if [ ! -e "$XCODE_APP_STORE_PATH_EXPECTED" ]; then
-  #         echo "Xcode not found in store. Expanding..."
-  #         install -m 644 "${xip}" "$WD/XCode_${version}.xip"
-  #         /usr/bin/xip --expand "$WD/XCode_${version}.xip"
-  #         nix-store --add-fixed --recursive sha256 "$WD/Xcode_${version}.app"
-  #     else
-  #         echo "Xcode already exists at $XCODE_APP_STORE_PATH_EXPECTED. Skipping expansion."
-  #     fi
-  #     sudo xcode-select -s "DEV_DIR"
+      if [ ! -e "$XCODE_APP_STORE_PATH_EXPECTED" ]; then
+          echo "Xcode not found in store. Expanding..."
+          install -m 644 "${xip}" "$WD/XCode_${version}.xip"
+          /usr/bin/xip --expand "$WD/XCode_${version}.xip"
+          nix-store --add-fixed --recursive sha256 "$WD/Xcode_${version}.app"
+      else
+          echo "Xcode already exists at $XCODE_APP_STORE_PATH_EXPECTED. Skipping expansion."
+      fi
+      sudo xcode-select -s "$DEV_DIR"
 
-  #     if ! xcodebuild -checkFirstLaunchStatus > /dev/null 2>&1; then
-  #       yes agree | sudo xcodebuild -license accept
-  #       xcodebuild -runFirstLaunch
-  #     else
-  #       echo "Xcode already initialized."
-  #     fi
-  #   '';
+      if ! xcodebuild -checkFirstLaunchStatus > /dev/null 2>&1; then
+        yes agree | sudo xcodebuild -license accept
+        xcodebuild -runFirstLaunch
+      else
+        echo "Xcode already initialized."
+      fi
+    '';
 
   # xcode = {
   #   mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
