@@ -1,4 +1,4 @@
-with builtins; {
+with builtins; rec {
 
   atlassian-cli = rec {
     versions = {
@@ -24,37 +24,8 @@ with builtins; {
       };
   };
 
-  xcode = rec {
-    versions = {
-      aarch64-darwin."26.2".sha256 = "0lmmyq12c3pkhs6cwf9v5pna1rvn7h8idxq0i78yh7v47ia1vwvd";
-    };
-    mkPkg = { pkgs, version ? "26.2", system ? pkgs.stdenv.hostPlatform.system, ... }:
-      let
-        xip = fetchurl {
-          url = "https://huggingface.co/datasets/nmarshall/nix-install-files/resolve/main/files/Xcode_${version}_Apple_silicon.xip?download=true";
-          sha256 = versions.${system}.${version}.sha256;
-          name = "Xcode_${version}_Apple_silicon.xip";
-        };
-      in
-      pkgs.stdenv.mkDerivation {
-        pname = "XCode.app";
-        inherit version;
-        src = xip;
 
-        dontUnpack = true;
-        buildPhase = ''
-          ${pkgs.xar}/bin/xar -xf ${xip}
-          ${pkgs.pbzx}/bin/pbzx -n Content | ${pkgs.cpio}/bin/cpio -i
-          rm Metadata Content
-          ${pkgs.rcodesign}/bin/rcodesign verify Xcode.app/Contents/MacOS/Xcode
-        '';
-        installPhase = ''mv Xcode.app $out'';
 
-        meta = {
-          description = "Automatically extracted Xcode from xip";
-          platforms = pkgs.lib.platforms.darwin;
-        };
-      };
-  };
+
 
 }
