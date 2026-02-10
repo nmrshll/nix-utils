@@ -2,12 +2,8 @@ thisFlake:
 { self, pkgs, inputs, ... }: {
   perSystem = { pkgs, config, l, lib, ownPkgs, ... }:
     with builtins; let
-      # dbg = x: (trace x) x;
-
-      # l = lib // builtins;
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
-      # rust-bin.beta.latest.default
       customRust = pkgs.rust-bin.beta.latest.default.override {
         extensions = [ "rust-src" "rust-analyzer" ];
         targets = [ ];
@@ -26,7 +22,11 @@ thisFlake:
 
       src = craneLib.cleanCargoSource self.outPath;
       relPath = p: (/. + builtins.unsafeDiscardStringContext "${self.outPath + "${p}"}");
-      commonArgs = { inherit src buildInputs; strictDeps = true; };
+      commonArgs = {
+        inherit src buildInputs;
+        inherit (config.rust) nativeBuildInputs; strictDeps = true;
+        env = config.rust.buildEnv;
+      };
       cargoArtifacts = craneLib.buildDepsOnly commonArgs;
       perCrateArgs = path:
         let crateToml = fromTOML (readFile (self.outPath + "/${path}/Cargo.toml"));
@@ -44,9 +44,9 @@ thisFlake:
             ];
           };
           doCheck = false; # we disable tests since we'll run them all via cargo-nextest
+          env = config.rust.buildEnv;
         };
       buildCrate = path: craneLib.buildPackage (perCrateArgs path);
-
 
 
       workspaceMembers =
@@ -71,6 +71,7 @@ thisFlake:
           cargoClippyExtraArgs = "--all-targets -- --deny warnings";
         });
       };
+
 
       wd = "$(git rev-parse --show-toplevel)";
       scripts = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
@@ -116,7 +117,8 @@ thisFlake:
       options.rust.extensions = l.mkOption { type = l.types.listOf l.types.str; default = [ ]; };
       options.rust.toolchain = l.mkOption { type = l.types.package; default = customRust; };
       options.rust.buildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
-      options.rust.buildEnv = l.mkOption { type = l.types.attrs; default = { }; };
+      options.rust.nativeBuildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
+      options.rust.buildEnv = l.mkOption { type = l.types.attrsOf l.types.string; default = { }; };
       # Internal options
       options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
 
