@@ -23,14 +23,14 @@
 
   beeper = rec {
     versions = {
-      aarch64-darwin."4.0.779".sha256 = "sha256:1z9z5aswx1fh2z8pd5761z4db6q8z4mbl4vshfh5wy055l0gvvp4";
+      aarch64-darwin."4.2.532".sha256 = "05indiqrfwsj6fx85l02ky57hf7kjkkkaic67i8wv4l9n3j4cvnj";
+      aarch64-darwin."4.0.779".sha256 = "1z9z5aswx1fh2z8pd5761z4db6q8z4mbl4vshfh5wy055l0gvvp4";
     };
-    mkPkg = { pkgs, version ? "4.0.779", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, version ? "4.2.532", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
         l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         appname = "Beeper";
         url = l.forSystem {
-          # aarch64-darwin = "https://download.beeper.com/versions/${version}/mac/dmg/arm64";
           aarch64-darwin = "https://beeper-desktop.download.beeper.com/builds/Beeper-${version}-arm64-mac.zip";
           x86_64-linux = "https://download.beeper.com/versions/${version}/linux/appImage/x64";
         };
@@ -53,7 +53,6 @@
           "unpackPhase"
           "installPhase"
         ];
-        # sourceRoot = "${appname}.app";
         installPhase = ''
           mkdir -p "$out/Applications/${appname}.app"
           cp -a ./. "$out/Applications/${appname}.app/"
