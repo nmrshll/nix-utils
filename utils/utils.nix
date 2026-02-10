@@ -6,7 +6,7 @@ with builtins; let
     if isFunction v then "<function>"
     else if isAttrs v then mapAttrs (_: fmt) v
     else if isList v then map fmt v
-    else if isPath x then "${toString x}"
+    else if isPath v then "${toString v}"
     else v;
   dbg = x: trace (fmt x) x;
 
