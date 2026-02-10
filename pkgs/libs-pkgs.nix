@@ -1,9 +1,11 @@
 with builtins; rec {
   xcode-xip = rec {
+    # downloaded from https://developer.apple.com/download/all/
     versions = {
-      aarch64-darwin."26.2_Apple_silicon".sha256 = "0lmmyq12c3pkhs6cwf9v5pna1rvn7h8idxq0i78yh7v47ia1vwvd";
+      aarch64-darwin."26_2_Apple_silicon".sha256 = "0lmmyq12c3pkhs6cwf9v5pna1rvn7h8idxq0i78yh7v47ia1vwvd";
+      aarch64-darwin."26_1_Apple_silicon".sha256 = "nsZrYLN3CwTEE1GtRGlOtWUHmDbFTimIM75MByUcUYs=";
     };
-    mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }: (pkgs.fetchurl {
+    mkPkg = { pkgs, version ? "26_1_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }: (pkgs.fetchurl {
       url = "https://huggingface.co/datasets/nmarshall/nix-install-files/resolve/main/files/Xcode_${version}.xip?download=true";
       sha256 = versions.${system}.${version}.sha256;
       name = "Xcode_${version}.xip";
@@ -13,41 +15,92 @@ with builtins; rec {
     });
   };
 
-  install-xcode.mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
-    let
-      xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
-      xcode_app_versions = {
-        "26.2_Apple_silicon".sha256 = "YxMVppJwRzTA6xWOILxVjLdl0bNmtZSifG/KQx6inRE=";
-      };
-    in
-    pkgs.writeShellScriptBin "install-xcode" ''
-      XCODE_APP_SHA256="${xcode_app_versions.${version}.sha256}"
-      XCODE_APP_NAME="Xcode.app"
-      XCODE_APP_STORE_PATH_EXPECTED=$(nix-store --print-fixed-path --recursive sha256 "$XCODE_APP_SHA256" "$XCODE_APP_NAME")
-      DEV_DIR="$XCODE_APP_STORE_PATH_EXPECTED/Contents/Developer"
-      WD=$(mktemp -d)
-      cd "$WD"
+  install-xcode = {
+    versions = {
+      aarch64-darwin."26_2_Apple_silicon" = { };
+      aarch64-darwin."26_1_Apple_silicon" = { };
+    };
+    mkPkg = { pkgs, version ? "26_1_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
+      let
+        xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
+        xcode_app.versions = {
+          "26_2_Apple_silicon".sha256 = "YxMVppJwRzTA6xWOILxVjLdl0bNmtZSifG/KQx6inRE=";
+          "26_1_Apple_silicon".sha256 = "xFMknk3RxxJi/5IOb2mmw7vyC1xOaY5ZwCZ09AARtJU=";
+        };
+        xcode_app.sha256 = xcode_app.versions.${version}.sha256;
+        expect-path = pkgs.runCommand "XCODE_APP_STORE_PATH_EXPECTED" { } ''
+          ${pkgs.nix}/bin/nix-store --print-fixed-path --recursive sha256 "${xcode_app.sha256}" "Xcode.app" > $out
+        '';
+        xcode_app.expected_path = lib.strings.trim (readFile expect-path);
+        DEV_DIR = "${xcode_app.expected_path}/Contents/Developer";
+      in
+      (pkgs.writeShellScriptBin "install-xcode" ''
+        WD=$(mktemp -d)
+        cd "$WD"
 
-      if [ ! -e "$XCODE_APP_STORE_PATH_EXPECTED" ]; then
-          echo "Xcode not found in store. Expanding..."
-          install -m 644 "${xip}" "$WD/XCode_${version}.xip"
-          /usr/bin/xip --expand "$WD/XCode_${version}.xip"
-          nix-store --add-fixed --recursive sha256 "$WD/Xcode_${version}.app"
-      else
-          echo "Xcode already exists at $XCODE_APP_STORE_PATH_EXPECTED. Skipping expansion."
-      fi
-      sudo xcode-select -s "$DEV_DIR"
+        if [ ! -e "${xcode_app.expected_path}" ]; then
+            echo "Xcode not found in store. Expanding..."
+            install -m 644 "${xip}" "$WD/XCode_${version}.xip"
+            /usr/bin/xip --expand "$WD/XCode_${version}.xip"
+            nix-store --add-fixed --recursive sha256 Xcode.app
+        else
+            echo "Xcode already exists at ${xcode_app.expected_path}. Skipping expansion."
+        fi
+        sudo xcode-select -s "${DEV_DIR}"
 
-      if ! xcodebuild -checkFirstLaunchStatus > /dev/null 2>&1; then
-        yes agree | sudo xcodebuild -license accept
-        xcodebuild -runFirstLaunch
-      else
-        echo "Xcode already initialized."
-      fi
-    '';
+        if ! xcodebuild -checkFirstLaunchStatus > /dev/null 2>&1; then
+          yes agree | sudo xcodebuild -license accept
+          xcodebuild -runFirstLaunch
+        else
+          echo "XCode already initialized."
+        fi
+      '').overrideAttrs (oldAttrs: {
+        passthru = (oldAttrs.passthru or { }) // {
+          inherit version xcode_app;
+        };
+      });
+  };
+
+  install-xcode-global = {
+    mkPkg = { pkgs, version ? "26_1_Apple_silicon", lib, ... }:
+      let
+        install-xcode-pkg = install-xcode.mkPkg { inherit pkgs version lib; };
+        store_path = install-xcode-pkg.xcode_app.expected_path;
+        target_path = "/Applications/Xcode.app";
+        DEV_DIR = "${target_path}/Contents/Developer";
+        SDKROOT = "${DEV_DIR}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk";
+      in
+      (pkgs.writeShellScriptBin "install-xcode-global" ''set -x
+        # 1. Ensure the Xcode bundle exists in the Nix Store
+        if [ ! -d "${store_path}" ]; then
+          ${install-xcode-pkg}/bin/install-xcode
+        fi
+
+        # 2. Copy to /Applications
+        if [ "$(xcodebuild -version 2>&1)" != "$(DEVELOPER_DIR="${DEV_DIR}" xcodebuild -version 2>&1)" ]; then
+          sudo rm -rf "${target_path}"
+          sudo rsync -rlptD --delete --stats "${store_path}/" "${target_path}/"
+        fi
+
+        # 3. Set $DEVELOPER_DIR and init Xcode
+        sudo xcode-select -s "${DEV_DIR}"
+  
+        if ! xcodebuild -checkFirstLaunchStatus > /dev/null 2>&1; then
+          yes agree | sudo xcodebuild -license accept
+          xcodebuild -runFirstLaunch
+        else
+          echo "XCode already initialized."
+        fi
+      '').overrideAttrs (oldAttrs: {
+        passthru = (oldAttrs.passthru or { }) // {
+          inherit version DEV_DIR SDKROOT;
+        };
+      });
+
+  };
 
   # xcode = {
-  #   mkPkg = { pkgs, version ? "26.2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
+  #   mkPkg = { pkgs, version ? "26_2_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
   #     let xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
   #     in pkgs.stdenv.mkDerivation {
   #       pname = "XCode.app";
