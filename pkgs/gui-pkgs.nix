@@ -1,5 +1,24 @@
 {
 
+  antigravity = rec {
+    versions = {
+      aarch64-darwin."1.16.5-6703236727046144".sha256 = "sha256:1nc2fsd4hmlvh1b5vh0ndffy6q7xng9xdb931c0dzkpz190alr0z";
+    };
+    mkPkg = { pkgs, version ? "1.16.5-6703236727046144", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+        url = l.forSystem {
+          aarch64-darwin = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}/darwin-arm/Antigravity.dmg";
+        };
+      in
+      l.darwin.installDmg {
+        inherit version url;
+        sha256 = versions.${system}.${version}.sha256;
+        appname = "Antigravity";
+        meta = { description = "AI-powered IDE"; homepage = "https://antigravity.google/"; };
+      };
+  };
+
   anytype = rec {
     versions = {
       aarch64-darwin."0.53.1".sha256 = "0v49qj232mkpx54z99nbmiafkvagkhk2xy8h8yyz95jizklhbh6g";
