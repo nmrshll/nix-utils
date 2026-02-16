@@ -135,7 +135,7 @@ thisFlake:
 
         devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);
         devShellParts.env = env;
-        l = { inherit craneLib; customRust = { inherit buildCrate; }; };
+        extraLib = { inherit craneLib; customRust = { inherit buildCrate; }; };
 
         vscode.settings = {
           "rust-analyzer.server.extraEnv" = {

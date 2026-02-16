@@ -4,14 +4,13 @@
     versions = {
       aarch64-darwin."1.16.5-6703236727046144".sha256 = "sha256:1nc2fsd4hmlvh1b5vh0ndffy6q7xng9xdb931c0dzkpz190alr0z";
     };
-    mkPkg = { pkgs, version ? "1.16.5-6703236727046144", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "1.16.5-6703236727046144", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
-        url = l.forSystem {
+        url = pkgs.lib.forSystem {
           aarch64-darwin = "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/${version}/darwin-arm/Antigravity.dmg";
         };
       in
-      l.darwin.installDmg {
+      pkgs.lib.darwin.installDmg {
         inherit version url;
         sha256 = versions.${system}.${version}.sha256;
         appname = "Antigravity";
@@ -25,14 +24,13 @@
       aarch64-darwin."0.52.4".sha256 = "05syxapx4i5qrr2l5f12vs6wn74zixqn2d83mz0lxlhyi7x635kp";
       aarch64-darwin."0.47.3".sha256 = "1xs52cnr81fzqg4cp7cbvmlnjgi548nv8sxbvdsd4gvl3v09c3qj";
     };
-    mkPkg = { pkgs, version ? "0.53.1", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "0.53.1", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // pkgs.callPackage ../utils/utils.nix { };
-        url = l.forSystem {
+        url = pkgs.lib.forSystem {
           aarch64-darwin = "https://anytype-release.fra1.cdn.digitaloceanspaces.com/Anytype-${version}-mac-arm64.dmg";
         };
       in
-      l.darwin.installDmg {
+      pkgs.lib.darwin.installDmg {
         inherit version url;
         sha256 = versions.${system}.${version}.sha256;
         appname = "AnyType";
@@ -45,11 +43,10 @@
       aarch64-darwin."4.2.532".sha256 = "05indiqrfwsj6fx85l02ky57hf7kjkkkaic67i8wv4l9n3j4cvnj";
       aarch64-darwin."4.0.779".sha256 = "1z9z5aswx1fh2z8pd5761z4db6q8z4mbl4vshfh5wy055l0gvvp4";
     };
-    mkPkg = { pkgs, version ? "4.2.532", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "4.2.532", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         appname = "Beeper";
-        url = l.forSystem {
+        url = pkgs.lib.forSystem {
           aarch64-darwin = "https://beeper-desktop.download.beeper.com/builds/Beeper-${version}-arm64-mac.zip";
           x86_64-linux = "https://download.beeper.com/versions/${version}/linux/appImage/x64";
         };
@@ -100,12 +97,11 @@
     versions = {
       aarch64-darwin."4.0.6".sha256 = "sha256:06kw4zkn6a3hd8s66hk77v4k0b7z7mn5h0y69hwgbhp0abqmg676";
     };
-    mkPkg = { pkgs, version ? "4.0.6", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "4.0.6", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         url = "https://github.com/transmission/transmission/releases/download/${version}/Transmission-${version}.dmg";
       in
-      l.darwin.installDmg {
+      pkgs.lib.darwin.installDmg {
         inherit version url;
         sha256 = versions.${system}.${version}.sha256;
         appname = "Transmission";
@@ -117,15 +113,14 @@
     versions = {
       aarch64-darwin."4.1.4".sha256 = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b";
     };
-    mkPkg = { pkgs, version ? "4.1.4", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "4.1.4", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         # versionHashes = { aarch64-darwin."4.1.4" = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b"; }.${pkgs.stdenv.hostPlatform.system};
         url = {
           aarch64-darwin = "https://github.com/johnste/finicky/releases/download/v${version}/Finicky.dmg";
         }.${pkgs.stdenv.hostPlatform.system};
       in
-      l.darwin.installDmg {
+      pkgs.lib.darwin.installDmg {
         inherit url version;
         sha256 = versions.${system}.${version}.sha256;
         appname = "Finicky";
@@ -137,14 +132,13 @@
     versions = {
       aarch64-darwin."241012ess7yxs0e".sha256 = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
     };
-    mkPkg = { pkgs, version ? "241012ess7yxs0e", system ? pkgs.stdenv.hostPlatform.system, ... }:
+    mkPkg = { pkgs, l, version ? "241012ess7yxs0e", system ? pkgs.stdenv.hostPlatform.system, ... }:
       let
-        l = builtins // (pkgs.callPackage ../utils/utils.nix { });
         # versions = {
         #   aarch64-darwin."241012ess7yxs0e" = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
         # }.${pkgs.stdenv.hostPlatform.system}.${version};
       in
-      l.darwin.installDmg {
+      pkgs.lib.darwin.installDmg {
         inherit version;
         sha256 = versions.${system}.${version}.sha256;
         url = "https://dl.todesktop.com/${version}/mac/dmg/arm64";
@@ -193,15 +187,15 @@
   #   };
   #   mkPkg = { pkgs, version ? "5415", system ? pkgs.stdenv.hostPlatform.system, ... }:
   #     let
-  #       l = builtins // (pkgs.callPackage ../utils/utils.nix { });
+  #       l = builtins // (pkgs.callPackage ../utils/utils.darwin.nix { });
   #       # sha256 = {
   #       #   aarch64-darwin."5415" = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
   #       # }.${pkgs.stdenv.hostPlatform.system}.${version};
   #     in
-  #     l.darwin.installDmg {
+  #     pkgs.lib.darwin.installDmg {
   #       inherit version;
   #       sha256 = versions.${system}.${version}.sha256;
-  #       url = l.forSystem {
+  #       url = pkgs.lib.forSystem {
   #         aarch64-darwin = "https://origin.cdn.kde.org/ci-builds/network/kdeconnect-kde/master/macos-arm64/kdeconnect-kde-master-${version}-macos-clang-arm64.dmg";
   #       };
   #       appname = "KDEConnect";

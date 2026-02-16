@@ -29,82 +29,23 @@ with builtins; let
   #     dedupModules config.use;
   # };
 
-  flakeModules.bin = { lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
-    name = "bin";
-    option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
-    file = ./optionDefs.nix;
-  };
-  # flakeModules.bin = { lib, ... }: {
-  #   perSystem = { ... }: {
-  #     options.bin = lib.mkOption { type = lib.types.attrsOf lib.types.str; default = { }; };
-  #     # config.bin = config.bin;
-  #   };
-  # };
+
   # flakeModules.lib = { lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
   #   name = "lib";
   #   option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
   #   file = ./optionDefs.nix;
   # };
-  flakeModules.lib = { lib, flake-parts-lib, config, ... }: {
-    imports = [
-      (flake-parts-lib.mkTransposedPerSystemModule {
-        name = "lib";
-        option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-        file = ./optionDefs.nix;
-      })
-    ];
-    # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
 
-    # lib = config.lib;
-    config.perSystem = { pkgs, lib, config, ... }: {
-      # _module.args.lib = lib // config.lib;
-      options.l = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-      config = {
-        _module.args.l = (pkgs.callPackage ../utils/utils.nix { }) // (config.l);
-        lib = config.l;
-      };
-      # config.bin = config.bin;
-    };
 
-  };
 
-  # This lets any modules add overlays or extra packages to the pkgs argument.
-  flakeModules.pkgs = { self, ... }: {
-    perSystem = { lib, system, config, ... }:
-      let
-        overlayType = lib.mkOptionType {
-          name = "nixpkgs-overlay";
-          description = "nixpkgs overlay";
-          check = lib.isFunction;
-          merge = lib.mergeOneOption;
-        };
-      in
-      {
-        options.pkgs.extraPkgs = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.package; default = { }; };
-        options.pkgs.overlays = lib.mkOption { type = lib.types.listOf overlayType; default = [ ]; };
-        config._module.args.pkgs = import self.inputs.nixpkgs {
-          inherit system;
-          overlays = config.pkgs.overlays; # TODO overlays for extraPkgs
-          # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
-          #   "terraform"
-          # ];
-        };
-      };
-  };
-
-  # # WHY: if a flakeModule adds to "packages" output directly, then consumers of the module will also get "packages" polluted.
-  # # This module lets flakeModules add packages to exposej as outputs of this flake, but not consumer flakes.
-  # TODO local/exposed version of all outputs
-  flakeModules.exposePkgs = { self, ... }: {
-    config.perSystem = { config, l, ... }: {
-      options.expose.packages = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
-    };
-  };
 
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
   flakeModules.ownPkgs = { self, ... }: {
-    perSystem = { pkgs, lib, system, config, ... }:
+    perSystem = { pkgs, l, lib, system, config, ... }:
       with builtins; let
+        # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
+        # # (/. + builtins.unsafeDiscardStringContext self.outPath)
+        # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
         pkgDefs = (import ../pkgs/editor-pkgs.nix)
           // (import ../pkgs/service-pkgs.nix)
           // (import ../pkgs/gui-pkgs.nix)
@@ -126,10 +67,7 @@ with builtins; let
           };
 
 
-        # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
-        # # (/. + builtins.unsafeDiscardStringContext self.outPath)
-        # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
-
+        # collect packages indexed by name & version
         ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
           (pkgName:
             let
@@ -137,12 +75,12 @@ with builtins; let
               versionedPkgs = listToAttrs (map
                 (version: {
                   name = "${pkgName}_${version}";
-                  value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib version; });
+                  value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l version; });
                 })
                 (attrNames pkgDef.versions.${system} or { }));
               defaultPkg =
                 if pkgDef ? versions.${system} || !(pkgDef?versions)
-                then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); }
+                then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l; }); }
                 else { };
             in
             versionedPkgs // defaultPkg
@@ -194,7 +132,5 @@ with builtins; let
   };
 
 in
-{
-  flakeModules = flakeModules // { all = { imports = (attrValues flakeModules); }; };
-}
+{ inherit flakeModules; }
 

@@ -1,3 +1,5 @@
+# TODO make available via pkgs.lib...
+# TODO extend pkgs via extraPkgs
 { pkgs, ... }:
 with builtins; let
   # throwSystem = throw "Unsupported system: ${pkgs.stdenv.hostPlatform.system}";
