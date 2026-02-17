@@ -1,6 +1,6 @@
-with builtins; rec {
+with builtins; {
 
-  atlassian-cli = rec {
+  pkgDefs.atlassian-cli = rec {
     versions = {
       aarch64-darwin."1.2.5-stable".sha256 = "sha256:1xij39cv16af7cs5pwyg3fb56kdmf2kvvrg0hizs4m0cly3pv00a";
     };
@@ -23,9 +23,5 @@ with builtins; rec {
         meta = { description = "Atlassian CLI"; homepage = "https://acli.atlassian.com/"; };
       };
   };
-
-
-
-
 
 }

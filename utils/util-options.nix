@@ -5,7 +5,7 @@
     perSystem = { l, system, config, ... }:
       let overlayType = l.mkOptionType { name = "nixpkgs-overlay"; description = "nixpkgs overlay"; check = l.isFunction; merge = l.mergeOneOption; };
       in {
-        options.pkgs.extraPkgs = l.mkOption { type = l.types.lazyAttrsOf l.types.package; default = { }; };
+        options.pkgs.extraPkgs = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
         options.pkgs.overlays = l.mkOption { type = l.types.listOf overlayType; default = [ ]; };
         # let any module add to pkgs.lib.X perSystem arg
         options.pkgs.extraLib = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
@@ -34,7 +34,7 @@
   flakeModules.bin = { lib, flake-parts-lib, ... }: flake-parts-lib.mkTransposedPerSystemModule {
     name = "bin";
     option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; /* default = { }; */ };
-    file = ./optionDefs.nix;
+    file = ./util-options.nix;
   };
   # flakeModules.bin = { lib, ... }: {
   #   perSystem = { ... }: {
@@ -44,29 +44,26 @@
   # };
 
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
-  flakeModules.ownPkgs = { self, ... }: {
-    perSystem = { pkgs, l, lib, system, config, ... }:
+  flakeModules.ownPkgs = { config, self, l, ... }: {
+    options.pkgDefs = l.mkOption { type = l.types.unspecified; default = { }; };
+
+    config.perSystem = { pkgs, l, lib, system, ... }:
       with builtins; let
+        # Note: this was for collecting module files
+        # TODO replace with findNixFilesRec in lib (and use from flake.nix)
         # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
         # # (/. + builtins.unsafeDiscardStringContext self.outPath)
         # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
 
-        pkgDefs = (import ../pkgs/editor-pkgs.nix)
-          // (import ../pkgs/service-pkgs.nix)
-          // (import ../pkgs/gui-pkgs.nix)
-          // (import ../pkgs/cli-pkgs.nix)
-          // (import ../pkgs/libs-pkgs.nix);
-
+        # TODO figure out env-based overrides
         mkExtraInput = overridePath: defaultSrc:
           if overridePath != "" && pathExists overridePath
           then (getFlake overridePath)
           else getFlake defaultSrc;
 
         extraInputs =
-          let
-            tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
-          in
-          {
+          let tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
+          in {
             # TODO use PAT in URL/env for private repos
             tools = getFlake ("/Users/me/src/me/tools");
           };
@@ -75,7 +72,7 @@
         ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
           (pkgName:
             let
-              pkgDef = getAttr pkgName pkgDefs;
+              pkgDef = getAttr pkgName config.pkgDefs;
               versionedPkgs = listToAttrs (map
                 (version: {
                   name = "${pkgName}_${version}";
@@ -89,78 +86,56 @@
             in
             versionedPkgs // defaultPkg
           )
-          (attrNames pkgDefs));
+          (attrNames config.pkgDefs));
 
-        ownPkgs = lib.filterAttrs (n: v: v != null) (
-          (lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
-          # // { tools = extraInputs.tools.packages.${system} or { }; }
+        ownPkgs = l.filterAttrs (n: v: v != null) (
+          (l.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
         );
 
       in
       {
-        # _module.args.ownPkgs = ownPkgs;
-        pkgs.extraPkgs = {
+        pkgs.extraPkgs.own = {
           tools = extraInputs.tools.packages.${system} or { };
           my-nix = ownPkgs;
         };
-        expose.packages = {
+        expose.packages.own = {
           tools = extraInputs.tools.packages.${system} or { };
           my-nix = ownPkgs;
         };
       };
   };
 
+  # let any module extend the flakeModule/perSystem lib arg
+  flakeModules.extraLib = { config, lib, flake-parts-lib, ... }: {
+    imports = [
+      # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
+      (flake-parts-lib.mkTransposedPerSystemModule {
+        name = "lib";
+        option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+        file = ./util-options.nix;
+      })
+    ];
 
+    # TODO nestedAttrs
+    options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+    config = {
+      _module.args.l = config.extraLib.deepMergeSetList [ lib config.extraLib ];
+    };
+    # TODO find a way to merge with global libs, preferably with a namespace
 
-  flakeModules.darwinPkgsLib = { ... }: {
-    config.perSystem = { l, pkgs, ... }: {
-      config.pkgs.extraLib.darwin = l.mkIf pkgs.stdenv.isDarwin {
+    # TODO expose extraLib in flake outputs under lib
+    # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
+    # lib = config.lib;
 
-        installDmg = { version, url, sha256, appname, meta }: pkgs.stdenvNoCC.mkDerivation {
-          inherit version;
-          meta = meta // {
-            platforms = [ "aarch64-darwin" ];
-          };
-          src = fetchurl { inherit url sha256; };
-          pname = l.slugify appname;
-          nativeBuildInputs = [ pkgs.undmg ];
-          buildInputs = [ pkgs.unzip ];
-          unpackCmd = ''
-            echo "File to unpack: $curSrc"
-            mnt=$(mktemp -d -t ci-XXXXXXXXXX)
-
-            function finish {
-              echo "Detaching $mnt"
-              /usr/bin/hdiutil detach $mnt -force
-              rm -rf $mnt
-            }
-            trap finish EXIT
-
-            echo "Attaching $mnt"
-            /usr/bin/hdiutil attach -nobrowse -readonly $src -mountpoint $mnt
-
-            echo "What's in the mount dir"?
-            ls -la $mnt/
-
-            echo "Copying contents"
-            shopt -s extglob
-            DEST="$PWD"
-            (cd "$mnt"; cp -a !(Applications) "$DEST/")
-          '';
-          phases = [
-            "unpackPhase"
-            "installPhase"
-          ];
-          sourceRoot = "${appname}.app";
-          installPhase = ''
-            mkdir -p "$out/Applications/${appname}.app"
-            cp -a ./. "$out/Applications/${appname}.app/"
-          '';
-        };
+    config.perSystem = { config, lib, pkgs, ... }: {
+      # _module.args.lib = lib // config.lib;
+      options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+      config = {
+        _module.args.l = config.extraLib.deepMergeSetList [ lib config.extraLib ];
       };
+      # config.bin = config.bin;
     };
   };
-
 
 in
 {

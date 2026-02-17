@@ -10,12 +10,6 @@
   outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, lib, l, ... }:
     with builtins; let
 
-      utilsModules = [
-        # (import ./utils/optionDefs.nix)
-        (import ./utils/lib.nix)
-        (import ./utils/pkg-utils.nix)
-      ];
-
       # NOTE: importApply injects thisFlake into module args (to distinguish from caller flake)
       flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
         cli-tools = ./modules/cli-tools.nix;
@@ -25,10 +19,22 @@
         rust = ./modules/rust.nix;
         devshell = ./modules/devshell.nix;
       };
+      pkgModules = [
+        (import ./pkgs/cli-pkgs.nix)
+        (import ./pkgs/editor-pkgs.nix)
+        (import ./pkgs/gui-pkgs.nix)
+        (import ./pkgs/libs-pkgs.nix)
+        (import ./pkgs/service-pkgs.nix)
+      ];
+      utilsModules = [
+        (import ./utils/lib.nix)
+        (import ./utils/util-options.nix)
+        (import ./utils/lib.darwin.nix)
+      ];
 
       extraImports = [
-        ({ lib, ... }: {
-          options.flakeModules = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; }; # TODO nestedAttrs
+        ({ l, ... }: {
+          options.flakeModules = lib.mkOption { type = lib.types.nestedAttrs lib.types.unspecified; };
         })
       ];
 
@@ -36,7 +42,7 @@
     {
       debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      imports = utilsModules ++ (attrValues flakeModules) ++ extraImports;
+      imports = (attrValues flakeModules) ++ pkgModules ++ utilsModules ++ extraImports;
 
       perSystem = { pkgs, config, l, ... }: {
         packages = l.flatMapPkgs config.expose.packages;

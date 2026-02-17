@@ -1,6 +1,6 @@
 {
 
-  antigravity = rec {
+  pkgDefs.antigravity = rec {
     versions = {
       aarch64-darwin."1.16.5-6703236727046144".sha256 = "sha256:1nc2fsd4hmlvh1b5vh0ndffy6q7xng9xdb931c0dzkpz190alr0z";
     };
@@ -18,7 +18,7 @@
       };
   };
 
-  anytype = rec {
+  pkgDefs.anytype = rec {
     versions = {
       aarch64-darwin."0.53.1".sha256 = "0v49qj232mkpx54z99nbmiafkvagkhk2xy8h8yyz95jizklhbh6g";
       aarch64-darwin."0.52.4".sha256 = "05syxapx4i5qrr2l5f12vs6wn74zixqn2d83mz0lxlhyi7x635kp";
@@ -38,7 +38,7 @@
       };
   };
 
-  beeper = rec {
+  pkgDefs.beeper = rec {
     versions = {
       aarch64-darwin."4.2.532".sha256 = "05indiqrfwsj6fx85l02ky57hf7kjkkkaic67i8wv4l9n3j4cvnj";
       aarch64-darwin."4.0.779".sha256 = "1z9z5aswx1fh2z8pd5761z4db6q8z4mbl4vshfh5wy055l0gvvp4";
@@ -77,7 +77,7 @@
       };
   };
 
-  # ferdium =
+  # pkgDefs.ferdium =
   #   let
   #     version = "7.0.0";
   #     url = localLib.forSystem {
@@ -93,7 +93,7 @@
   #     meta = { description = "All your services in one place built by the community"; homepage = "https://ferdium.org"; };
   #   };
 
-  transmission = rec {
+  pkgDefs.transmission = rec {
     versions = {
       aarch64-darwin."4.0.6".sha256 = "sha256:06kw4zkn6a3hd8s66hk77v4k0b7z7mn5h0y69hwgbhp0abqmg676";
     };
@@ -109,7 +109,7 @@
       };
   };
 
-  finicky = rec {
+  pkgDefs.finicky = rec {
     versions = {
       aarch64-darwin."4.1.4".sha256 = "sha256:13ayk8jslvxdqaba1ay2kr3hw0g2hr4lpadll9cv4zglz94xj81b";
     };
@@ -128,7 +128,7 @@
       };
   };
 
-  comfy-ui = rec {
+  pkgDefs.comfy-ui = rec {
     versions = {
       aarch64-darwin."241012ess7yxs0e".sha256 = "0fbiwl0kir80gyiqqm5xrvsdwqj4fjws0k2slcrq2g4xkn7cwv7g";
     };
@@ -148,7 +148,7 @@
   };
 
   # ABANDONED
-  # ito = { pkgs, version ? "0.9.0" }:
+  # pkgDefs.ito = { pkgs, version ? "0.9.0" }:
   #   let
   #     versionHashes = {
   #       aarch64-darwin."0.9.0" = "sha256:0ii3mgknaxyrk7xamzn6sqp2828v2rsq8w38s4yqrkfhs53aclq6";
@@ -165,7 +165,7 @@
   #   };
 
   # ABANDONED
-  # tome = { pkgs, version ? "0.2.0" }:
+  # pkgDefs.tome = { pkgs, version ? "0.2.0" }:
   #   let
   #     versionHashes = {
   #       aarch64-darwin."0.2.0" = "sha256:1z1rxb0xavi9idf100i7mimsrgkivyh860818yy9zbryy2af2dv8";
@@ -181,7 +181,7 @@
   #     meta = { source = "https://github.com/joshkotrous/tome"; description = "AI-native database client that translates natural language into perfect queries"; homepage = "https://tome.lang/"; };
   #   };
 
-  # kdeConnect = rec {
+  # pkgDefs.kdeConnect = rec {
   #   versions = {
   #     aarch64-darwin."5415".sha256 = "1q3dsgnr6v1dwvffllfin19h7qq516da7iiqyxc0fkf71f1jvy70";
   #   };
@@ -203,7 +203,7 @@
   #     };
   # };
 
-  # lulu = rec {
+  # pkgDefs.lulu = rec {
   #   versions = {
   #     aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
   #     aarch64-darwin."3.1.5".sha256 = "eFrOZv6KSZlmLtyPORrD2Low/e7m7HU1WeuT/w8Us7I=";
@@ -240,7 +240,7 @@
   #     };
   # };
 
-  lulu-installer = rec {
+  pkgDefs.lulu-installer = rec {
     versions = {
       aarch64-darwin."4.2.0".sha256 = "1yl75hw5psblcb6biwxdp2mjp3n4dclyaj961mh3f6v8bya6ylcj";
     };

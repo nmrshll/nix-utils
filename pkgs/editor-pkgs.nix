@@ -1,5 +1,5 @@
 {
-  openspec = rec {
+  pkgDefs.openspec = rec {
     versions = {
       aarch64-darwin."0.16.0".sha256 = "eBZvgjjEzhoO1Gt4B3lsgOvJ98uGq7gaqdXQ40i0SqY=";
       aarch64-darwin."0.15.0".sha256 = "Wb0m2ZRmOXNj6DOK9cyGYzFLNTQjLO+czDxzIHfADnY=";
@@ -76,7 +76,7 @@
   #       };
   #     };
 
-  warp = rec {
+  pkgDefs.warp = rec {
     versions = {
       aarch64-darwin."0.2025.07.02.08.36.stable_02".sha256 = "sha256:06ys4d5p9fw0v0033ckxlnmlxpmkrydzm7c53bipvah1i9i5nxk1";
       aarch64-darwin."0.2025.06.25.08.12.stable_01".sha256 = "sha256:09n9frfds1a71zkbhydiv87ckb4frlai2c9qmp0zrx313x8i5y7g";
@@ -95,7 +95,7 @@
       };
   };
 
-  windsurf = rec {
+  pkgDefs.windsurf = rec {
     versions = {
       aarch64-darwin."1.2.4".sha256 = "sha256:1h05cvvk7qjsnws2y48aajabzgafhi0nmmk840f2x7cmjvqlfq1j";
       x86_64-linux."1.2.4".sha256 = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06";
@@ -120,7 +120,7 @@
         }) else null;
   };
 
-  aide = rec {
+  pkgDefs.aide = rec {
     versions = {
       aarch64-darwin."1.96.4.25031".sha256 = "sha256:0xkllb9a7wp5wyadppsblskdwa87qrab8f6ymkfkbypd0fkl6x4q";
       x86_64-linux."1.96.4.25031".sha256 = "sha256:0pqy587d1kmdzz6jax2n56vz6av5jplmr3g3knasylw5sz202a06";
@@ -149,30 +149,7 @@
         }) else null;
   };
 
-
-
-
-
 }
 
 
-# in
 
-# builtins.foldl'
-#   (a: b: builtins.deepSeq b (a // b))
-# { }
-#   (builtins.map
-#     (pkgName:
-#     let
-#       pkgDef = builtins.getAttr pkgName pkgDefs;
-#       versionedPkgs = builtins.listToAttrs (builtins.map
-#         (version: {
-#           name = "${pkgName}_${version}";
-#           value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib version; });
-#         })
-#         (builtins.attrNames pkgDef.versions));
-#       defaultPkg = { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib; }); };
-#     in
-#     versionedPkgs // defaultPkg
-#     )
-#     (builtins.attrNames pkgDefs))

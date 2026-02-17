@@ -1,5 +1,5 @@
 with builtins; rec {
-  xcode-xip = rec {
+  pkgDefs.xcode-xip = rec {
     # downloaded from https://developer.apple.com/download/all/
     versions = {
       aarch64-darwin."26_2_Apple_silicon".sha256 = "0lmmyq12c3pkhs6cwf9v5pna1rvn7h8idxq0i78yh7v47ia1vwvd";
@@ -15,7 +15,7 @@ with builtins; rec {
     });
   };
 
-  install-xcode = {
+  pkgDefs.install-xcode = {
     versions = {
       aarch64-darwin."26_2_Apple_silicon" = { };
       aarch64-darwin."26_1_Apple_silicon" = { };
@@ -61,7 +61,7 @@ with builtins; rec {
       });
   };
 
-  install-xcode-global = {
+  pkgDefs.install-xcode-global = {
     mkPkg = { pkgs, version ? "26_1_Apple_silicon", lib, ... }:
       let
         install-xcode-pkg = install-xcode.mkPkg { inherit pkgs version lib; };

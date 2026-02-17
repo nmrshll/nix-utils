@@ -1,5 +1,3 @@
-# TODO call from utils.main.nix
-# TODO add tests to flake.checks
 { l }:
 let
   tests.flatMapPkgs = {
@@ -26,4 +24,6 @@ let
 
 
 in
-{ }
+{
+  # TODO here add tests to flake.checks
+}

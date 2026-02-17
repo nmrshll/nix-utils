@@ -1,6 +1,6 @@
-with builtins; let
+{ lib, l, ... }: with builtins; let
 
-  mkLib = { lib, ... }: rec {
+  myLib = rec {
     dbgJSON = o: (trace (toJSON o) o);
     dbgAttrs = o: (trace (attrNames o) o);
     fmt = v:
@@ -21,7 +21,7 @@ with builtins; let
     types = lib.types // {
       nestedAttrs = type: lib.types.lazyAttrsOf (lib.types.oneOf [
         type
-        (lib.types.lazyAttrsOf type)
+        (l.types.nestedAttrs type)
       ]);
     };
 
@@ -48,54 +48,17 @@ with builtins; let
     flatListPkgs = set: attrValues (flatMapPkgs set);
   };
 
-  pkgsLib = { lib, pkgs, ... }: {
+  mkPkgsLib = { lib, pkgs, ... }: {
     throwSystem = throw "Unsupported system: ${pkgs.stdenv.hostPlatform.system}";
     forSystem = perSystemAttrs: perSystemAttrs.${pkgs.stdenv.hostPlatform.system} or throwSystem;
   };
 
 
-  flakeModules.pkgsLib = { ... }: {
-    perSystem = { pkgs, l, ... }: {
-      pkgs.extraLib = pkgsLib { inherit pkgs; lib = l; };
-    };
-  };
-
-  # let any module extend the flakeModule/perSystem lib arg
-  flakeModules.extraLib = { lib, flake-parts-lib, config, ... }:
-    let localLib = mkLib { inherit lib; };
-    in {
-      imports = [
-        # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
-        (flake-parts-lib.mkTransposedPerSystemModule {
-          name = "lib";
-          option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-          file = ./optionDefs.nix;
-        })
-      ];
-
-      # TODO nestedAttrs
-      options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-      config = {
-        _module.args.l = localLib.deepMergeSetList [ lib localLib config.extraLib ];
-      };
-      # TODO find a way to merge with global libs, preferably with a namespace
-
-      # TODO expose extraLib in flake outputs under lib
-      # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
-      # lib = config.lib;
-
-      config.perSystem = { lib, config, pkgs, ... }: {
-        # _module.args.lib = lib // config.lib;
-        options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-        config = {
-          _module.args.l = localLib.deepMergeSetList [ lib localLib config.extraLib ];
-        };
-        # config.bin = config.bin;
-      };
-    };
-
 in
 {
-  inherit flakeModules;
-  imports = (attrValues flakeModules);
+  extraLib = myLib;
+  perSystem = { pkgs, l, ... }: {
+    extraLib = myLib;
+    pkgs.extraLib = mkPkgsLib { inherit pkgs; lib = l; };
+  };
 }

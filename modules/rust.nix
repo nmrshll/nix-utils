@@ -92,7 +92,7 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
-        cwadd = ''${pkgs.tools.cargo-wadd}/bin/cargo-wadd $@'';
+        cwadd = ''${pkgs.own.tools.cargo-wadd}/bin/cargo-wadd $@'';
         cadd = ''cargo add $(packages) $@'';
 
         build = ''nix build . --show-trace '';
@@ -128,7 +128,8 @@ thisFlake:
         checks = tests;
         # legacyPackages = { inherit crates; };
         # packages = l.mapAttrs' (name: value: { name = "crate-${name}"; inherit value; }) crates;
-        packages = crates;
+
+        packages = crates; # expose caller's crates in caller outputs
 
         expose.packages = scripts // { inherit customRust; };
         pkgs.overlays = [ (import thisFlake.inputs.rust-overlay) ];
