@@ -1,4 +1,4 @@
-with builtins; let
+{ ... }: with builtins; let
 
   # Let any module add overlays or extra packages / pkgs.lib.X to the pkgs perSystem arg.
   flakeModules.pkgsArg = { self, ... }: {
@@ -13,9 +13,7 @@ with builtins; let
         config._module.args.pkgs = import self.inputs.nixpkgs {
           inherit system;
           overlays = config.pkgs.overlays ++ [
-            (final: prev: {
-              lib = prev.lib // config.pkgs.extraLib;
-            })
+            (final: prev: { lib = prev.lib // config.pkgs.extraLib; })
             (final: prev: prev // config.pkgs.extraPkgs)
           ];
           config.allowUnfree = true;
@@ -44,6 +42,73 @@ with builtins; let
   #     # config.bin = config.bin;
   #   };
   # };
+
+  # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
+  flakeModules.ownPkgs = { self, ... }: {
+    perSystem = { pkgs, l, lib, system, config, ... }:
+      with builtins; let
+        # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
+        # # (/. + builtins.unsafeDiscardStringContext self.outPath)
+        # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
+
+        pkgDefs = (import ../pkgs/editor-pkgs.nix)
+          // (import ../pkgs/service-pkgs.nix)
+          // (import ../pkgs/gui-pkgs.nix)
+          // (import ../pkgs/cli-pkgs.nix)
+          // (import ../pkgs/libs-pkgs.nix);
+
+        mkExtraInput = overridePath: defaultSrc:
+          if overridePath != "" && pathExists overridePath
+          then (getFlake overridePath)
+          else getFlake defaultSrc;
+
+        extraInputs =
+          let
+            tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
+          in
+          {
+            # TODO use PAT in URL/env for private repos
+            tools = getFlake ("/Users/me/src/me/tools");
+          };
+
+        # collect packages indexed by name & version
+        ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
+          (pkgName:
+            let
+              pkgDef = getAttr pkgName pkgDefs;
+              versionedPkgs = listToAttrs (map
+                (version: {
+                  name = "${pkgName}_${version}";
+                  value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l version; });
+                })
+                (attrNames pkgDef.versions.${system} or { }));
+              defaultPkg =
+                if pkgDef ? versions.${system} || !(pkgDef?versions)
+                then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l; }); }
+                else { };
+            in
+            versionedPkgs // defaultPkg
+          )
+          (attrNames pkgDefs));
+
+        ownPkgs = lib.filterAttrs (n: v: v != null) (
+          (lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
+          # // { tools = extraInputs.tools.packages.${system} or { }; }
+        );
+
+      in
+      {
+        # _module.args.ownPkgs = ownPkgs;
+        pkgs.extraPkgs = {
+          tools = extraInputs.tools.packages.${system} or { };
+          my-nix = ownPkgs;
+        };
+        expose.packages = {
+          tools = extraInputs.tools.packages.${system} or { };
+          my-nix = ownPkgs;
+        };
+      };
+  };
 
 
 
@@ -92,11 +157,13 @@ with builtins; let
             cp -a ./. "$out/Applications/${appname}.app/"
           '';
         };
-
       };
     };
   };
 
 
 in
-{ inherit flakeModules; }
+{
+  inherit flakeModules;
+  imports = (attrValues flakeModules);
+}

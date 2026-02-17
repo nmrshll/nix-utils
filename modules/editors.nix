@@ -1,6 +1,6 @@
 thisFlake:
 { config, pkgs, ... }: {
-  perSystem = { pkgs, config, lib, ownPkgs, ... }:
+  perSystem = { pkgs, config, lib, ... }:
     with builtins; let
       # l = lib // builtins;
       # editorPkgs = lib.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) (import ../pkgs/editor-pkgs.nix);
@@ -112,7 +112,7 @@ thisFlake:
       };
       config = {
         inherit bin;
-        # packages = scripts // ownPkgs;
+        # packages = scripts;
         expose.packages = scripts;
         devShellParts.buildInputs = (attrValues scripts);
         devShellParts.shellHookParts.configure-editors = bin.configure-editors;

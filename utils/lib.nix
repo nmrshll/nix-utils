@@ -95,4 +95,7 @@ with builtins; let
     };
 
 in
-{ inherit flakeModules; }
+{
+  inherit flakeModules;
+  imports = (attrValues flakeModules);
+}

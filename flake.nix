@@ -7,17 +7,14 @@
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
 
-  outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, lib, ... }:
+  outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, lib, l, ... }:
     with builtins; let
-      utils = import ./utils/_main.nix;
-      l = utils.mkLib { inherit lib; };
-      # {l, utilsModules} = utils.mkLib { inherit lib; };
-      utilsModules = utils.flakeModules;
-      # TODO expose all utilsModules in utils
-      # utilsModules = dbg (l.deepMergeSetList [
-      #   (import ./utils/optionDefs.nix).flakeModules
-      #   (import ./utils/lib.nix).flakeModules
-      # ]);
+
+      utilsModules = [
+        # (import ./utils/optionDefs.nix)
+        (import ./utils/lib.nix)
+        (import ./utils/pkg-utils.nix)
+      ];
 
       # NOTE: importApply injects thisFlake into module args (to distinguish from caller flake)
       flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
@@ -26,21 +23,20 @@
         editors = ./modules/editors.nix;
         services = ./modules/services.nix;
         rust = ./modules/rust.nix;
+        devshell = ./modules/devshell.nix;
       };
 
-      # # TEMP
-      # fmt = v:
-      #   if isFunction v then "<function>"
-      #   else if isAttrs v then mapAttrs (_: fmt) v
-      #   else if isList v then map fmt v
-      #   else if isPath v then "${toString v}"
-      #   else v;
-      # dbg = x: trace (fmt x) x;
+      extraImports = [
+        ({ lib, ... }: {
+          options.flakeModules = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; }; # TODO nestedAttrs
+        })
+      ];
+
     in
     {
       debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      imports = [ (trace (attrNames utilsModules) utilsModules.all) ] ++ (attrValues flakeModules);
+      imports = utilsModules ++ (attrValues flakeModules) ++ extraImports;
 
       perSystem = { pkgs, config, l, ... }: {
         packages = l.flatMapPkgs config.expose.packages;

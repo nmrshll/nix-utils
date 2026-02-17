@@ -1,6 +1,6 @@
 thisFlake:
 { self, pkgs, inputs, ... }: {
-  perSystem = { pkgs, config, l, lib, ownPkgs, ... }:
+  perSystem = { pkgs, config, l, lib, ... }:
     with builtins; let
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
 
@@ -92,7 +92,7 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
-        cwadd = ''${ownPkgs.tools.cargo-wadd}/bin/cargo-wadd $@'';
+        cwadd = ''${pkgs.tools.cargo-wadd}/bin/cargo-wadd $@'';
         cadd = ''cargo add $(packages) $@'';
 
         build = ''nix build . --show-trace '';
@@ -120,7 +120,7 @@ thisFlake:
       options.rust.nativeBuildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
       options.rust.buildEnv = l.mkOption { type = l.types.attrsOf l.types.string; default = { }; };
       # Internal options
-      options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
+      options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; readOnly = true; };
 
       config = {
         inherit bin;
@@ -139,18 +139,18 @@ thisFlake:
 
         vscode.settings = {
           "rust-analyzer.server.extraEnv" = {
-            CARGO = "${customRust}/bin/cargo";
-            RUSTC = "${customRust}/bin/rustc";
-            RUSTFMT = "${customRust}/bin/rustfmt";
+            CARGO = "${config.rust.toolchain}/bin/cargo";
+            RUSTC = "${config.rust.toolchain}/bin/rustc";
+            RUSTFMT = "${config.rust.toolchain}/bin/rustfmt";
             # SQLX_OFFLINE = 1;
             # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
           };
-          "rust-analyzer.server.path" = "${customRust}/bin/rust-analyzer";
-          "rust-analyzer.runnables.command" = "${customRust}/bin/cargo";
+          "rust-analyzer.server.path" = "${config.rust.toolchain}/bin/rust-analyzer";
+          "rust-analyzer.runnables.command" = "${config.rust.toolchain}/bin/cargo";
           "rust-analyzer.runnables.extraEnv" = {
-            CARGO = "${customRust}/bin/cargo";
-            RUSTC = "${customRust}/bin/rustc";
-            RUSTFMT = "${customRust}/bin/rustfmt";
+            CARGO = "${config.rust.toolchain}/bin/cargo";
+            RUSTC = "${config.rust.toolchain}/bin/rustc";
+            RUSTFMT = "${config.rust.toolchain}/bin/rustfmt";
             # SQLX_OFFLINE = 1;
             # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
           };
