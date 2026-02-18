@@ -3,45 +3,11 @@ with builtins; let
   mkLib = { lib }: rec {
     dbgJSON = o: (trace (toJSON o) o);
     dbgAttrs = o: (trace (attrNames o) o);
-    # fmt = v:
-    #   if isFunction v then "<function>"
-    #   else if isAttrs v then mapAttrs (_: fmt) v
-    #   else if isList v then map fmt v
-    #   else if isPath v then "${toString v}"
-    #   else v;
-    # dbg = x: trace (fmt x) x;
-
-    # fmtDepth = d: v:
-    #   if d < 0 then "..."  # Stop here if we've gone too deep
-    #   else if isFunction v then lib.generators.toPretty { } v
-    #   else if isAttrs v then mapAttrs (_: fmtDepth (d - 1)) v
-    #   else if isList v then map (fmtDepth (d - 1)) v
-    #   else if isPath v then "${toString v}"
-    #   else v;
-    # dbg2 = x: trace (fmtDepth 4 x) x;
 
     dbg2 = o: (lib.traceSeqN 2 o) o;
     dbg3 = o: (lib.traceSeqN 3 o) o;
     dbg4 = o: (lib.traceSeqN 4 o) o;
     dbg5 = o: (lib.traceSeqN 5 o) o;
-
-    # traceSeqN = depth: x: y:
-    #   let
-    #     snip = v:
-    #       if isList v then noQuotes "[…]" v
-    #       else if isAttrs v then noQuotes "{…}" v
-    #       else v;
-    #     noQuotes = str: v: {
-    #       __pretty = lib.const str;
-    #       val = v;
-    #     };
-    #     modify = n: fn: v:
-    #       if (n == 0) then fn v
-    #       else if isList v then map (modify (n - 1) fn) v
-    #       else if isAttrs v then mapAttrs (lib.const (modify (n - 1) fn)) v
-    #       else v;
-    #   in
-    #   trace (lib.generators.toPretty { allowPrettyValues = true; } (modify depth snip x)) y;
 
 
     # TODO use mapAttrs ??
@@ -54,6 +20,15 @@ with builtins; let
     prefixKeys = prefix: obj: mapKeys (k: "${prefix}_${k}") obj;
 
     slugify = str: lib.toLower (replaceStrings [ " " ] [ "-" ] str);
+
+    findNixFilesRec = dir: lib.flatten (lib.mapAttrsToList
+      (name: type:
+        let path = "${toString dir}/${name}"; in
+        if type == "directory" then findNixFilesRec path  # Recursively call if it's a directory
+        else if type == "regular" && lib.hasSuffix ".nix" name then [ path ]  # Collect the path if it's a .nix file
+        else [ ]  # Ignore everything else
+      )
+      (builtins.readDir dir));
 
     types = lib.types // {
       nestedAttrs = type: lib.types.lazyAttrsOf (lib.types.oneOf [
@@ -84,18 +59,25 @@ with builtins; let
     flatListPkgs = set: attrValues (flatMapPkgs set);
   };
 
-  mkPkgsLib = { lib, system, ... }: {
+  # TODO all lib should go in here
+  mkPkgsLib = { lib, pkgs ? null, system ? pkgs.hostPlatform.system, ... }: {
     throwSystem = throw "Unsupported system: ${system}";
     forSystem = perSystemAttrs: perSystemAttrs.${system} or throwSystem;
-  };
+  } /* // mkLib { lib = lib; } */;
 
 
   flakeModules.myLib = { lib, ... }: {
-    extraLib = mkLib { lib = lib; };
-    perSystem = { system, lib, ... }: {
+
+    config.extraLib = mkLib { lib = lib; };
+    config.perSystem = { system, lib, ... }: {
       extraLib = mkLib { lib = lib; };
       pkgs.extraLib = mkPkgsLib { inherit system; lib = lib; };
     };
+
+    # usual shape of lib: fn({finalPkgs,lib}) -> {attrs}
+    options.flake.lib = lib.mkOption { type = lib.types.unspecified; default = { }; };
+    # config.flake.lib = final: mkPkgsLib { lib = final.lib; pkgs = final; };
+    config.flake.lib = mkLib { lib = lib; };
   };
 
 

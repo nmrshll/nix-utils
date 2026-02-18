@@ -131,14 +131,15 @@ with builtins; let
 
   # let any module extend the flakeModule/perSystem lib arg
   flakeModules.extraLib = { config, lib, flake-parts-lib, inputs, ... }: {
-    imports = [
-      # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
-      (flake-parts-lib.mkTransposedPerSystemModule {
-        name = "lib";
-        option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
-        file = ./util-options.nix;
-      })
-    ];
+    # imports = [
+    #   # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
+    #   (flake-parts-lib.mkTransposedPerSystemModule {
+    #     name = "lib";
+    #     option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+    #     file = ./util-options.nix;
+    #   })
+    # ];
+
 
     # TODO nestedAttrs
     options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
@@ -164,7 +165,7 @@ with builtins; let
   flakeModules.moduleTypes = { config, l, ... }: {
     options.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
     options.flake.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
-    config.flake.flakeModules = l.dbg4 (l.deepMergeSetList [
+    config.flake.flakeModules = (l.deepMergeSetList [
       config.flakeModules
       { utils.all.imports = attrValues config.flakeModules.utils; }
     ]);
