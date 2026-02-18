@@ -32,23 +32,18 @@
         (import ./utils/lib.darwin.nix)
       ];
 
-      extraImports = [
-        ({ l, ... }: {
-          options.flakeModules = lib.mkOption { type = lib.types.nestedAttrs lib.types.unspecified; };
-        })
-      ];
 
     in
     {
       debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      imports = (attrValues flakeModules) ++ pkgModules ++ utilsModules ++ extraImports;
+      imports = (attrValues flakeModules) ++ pkgModules ++ utilsModules;
 
       perSystem = { pkgs, config, l, ... }: {
         packages = l.flatMapPkgs config.expose.packages;
       };
 
-      flake.flakeModules = flakeModules // { utils = utilsModules.all; };
+      # flake.flakeModules = flakeModules // { utils = utilsModules.all; };
     });
 }
 

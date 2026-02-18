@@ -1,23 +1,33 @@
-{ ... }: with builtins; let
+with builtins; let
 
   # Let any module add overlays or extra packages / pkgs.lib.X to the pkgs perSystem arg.
   flakeModules.pkgsArg = { self, ... }: {
-    perSystem = { l, system, config, ... }:
+    perSystem = { config, l, system, ... }:
       let overlayType = l.mkOptionType { name = "nixpkgs-overlay"; description = "nixpkgs overlay"; check = l.isFunction; merge = l.mergeOneOption; };
       in {
         options.pkgs.extraPkgs = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; };
         options.pkgs.overlays = l.mkOption { type = l.types.listOf overlayType; default = [ ]; };
+        options.pkgs.nixpkgsConfig = l.mkOption { type = l.types.unspecified; default = { }; };
         # let any module add to pkgs.lib.X perSystem arg
         options.pkgs.extraLib = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
 
+        config.pkgs.overlays = [
+          (final: prev: { lib = l.deepMergeSetList [ prev.lib config.pkgs.extraLib ]; })
+          (final: prev: { extraPkgs = l.deepMergeSetList [ (final.extraPkgs or { }) config.pkgs.extraPkgs ]; })
+        ]; /* TODO: here we could cycle through extraPkgs and gen 1 overlay per key */
+        config.pkgs.nixpkgsConfig = {
+          allowUnfree = true;
+          # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "terraform" ];
+        };
+        # DEPRECATED -> this is already perSys.pkgs
+        # make finalPkgs read-only for other modules (e.g. to inject into hmModule / darwinModule)
+        # options.pkgs.finalPkgs = l.mkOption { default = finalPkgs; readOnly = true; type = l.types.nestedAttrs l.types.package; };
+
+        # inject into perSystem pkgs
         config._module.args.pkgs = import self.inputs.nixpkgs {
           inherit system;
-          overlays = config.pkgs.overlays ++ [
-            (final: prev: { lib = prev.lib // config.pkgs.extraLib; })
-            (final: prev: prev // config.pkgs.extraPkgs)
-          ];
-          config.allowUnfree = true;
-          # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "terraform" ];
+          overlays = config.pkgs.overlays; # TODO DEBUG HERE
+          config = config.pkgs.nixpkgsConfig;
         };
       };
   };
@@ -46,67 +56,81 @@
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
   flakeModules.ownPkgs = { config, self, l, ... }: {
     options.pkgDefs = l.mkOption { type = l.types.unspecified; default = { }; };
+    # TODO: use findNixFilesRec
+    imports = [
+      ../pkgs/cli-pkgs.nix
+      ../pkgs/editor-pkgs.nix
+      ../pkgs/gui-pkgs.nix
+      ../pkgs/libs-pkgs.nix
+      ../pkgs/service-pkgs.nix
+    ];
 
-    config.perSystem = { pkgs, l, lib, system, ... }:
-      with builtins; let
-        # Note: this was for collecting module files
-        # TODO replace with findNixFilesRec in lib (and use from flake.nix)
-        # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
-        # # (/. + builtins.unsafeDiscardStringContext self.outPath)
-        # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
+    config.perSystem = { pkgs, l, lib, system, ... }: with builtins; let
+      # Note: this was for collecting module files
+      # TODO replace with findNixFilesRec in lib (and use from flake.nix)
+      # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
+      # # (/. + builtins.unsafeDiscardStringContext self.outPath)
+      # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
 
-        # TODO figure out env-based overrides
-        mkExtraInput = overridePath: defaultSrc:
-          if overridePath != "" && pathExists overridePath
-          then (getFlake overridePath)
-          else getFlake defaultSrc;
+      # TODO figure out env-based overrides
+      mkExtraInput = overridePath: defaultSrc:
+        if overridePath != "" && pathExists overridePath
+        then (getFlake overridePath)
+        else getFlake defaultSrc;
 
-        extraInputs =
-          let tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
-          in {
-            # TODO use PAT in URL/env for private repos
-            tools = getFlake ("/Users/me/src/me/tools");
-          };
-
-        # collect packages indexed by name & version
-        ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
-          (pkgName:
-            let
-              pkgDef = getAttr pkgName config.pkgDefs;
-              versionedPkgs = listToAttrs (map
-                (version: {
-                  name = "${pkgName}_${version}";
-                  value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l version; });
-                })
-                (attrNames pkgDef.versions.${system} or { }));
-              defaultPkg =
-                if pkgDef ? versions.${system} || !(pkgDef?versions)
-                then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l; }); }
-                else { };
-            in
-            versionedPkgs // defaultPkg
-          )
-          (attrNames config.pkgDefs));
-
-        ownPkgs = l.filterAttrs (n: v: v != null) (
-          (l.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
-        );
-
-      in
-      {
-        pkgs.extraPkgs.own = {
-          tools = extraInputs.tools.packages.${system} or { };
-          my-nix = ownPkgs;
+      extraInputs =
+        let tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
+        in {
+          # TODO use PAT in URL/env for private repos
+          tools = getFlake ("/Users/me/src/me/tools");
         };
-        expose.packages.own = {
-          tools = extraInputs.tools.packages.${system} or { };
-          my-nix = ownPkgs;
-        };
+
+      # collect packages indexed by name & version
+      ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
+        (pkgName:
+          let
+            pkgDef = getAttr pkgName config.pkgDefs;
+            versionedPkgs = listToAttrs (map
+              (version: {
+                name = "${pkgName}_${version}";
+                value = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l version; });
+              })
+              (attrNames pkgDef.versions.${system} or { }));
+            defaultPkg =
+              if pkgDef ? versions.${system} || !(pkgDef?versions)
+              then { ${pkgName} = { pkgs, lib, ... }: (pkgDef.mkPkg { inherit pkgs lib l; }); }
+              else { };
+          in
+          versionedPkgs // defaultPkg
+        )
+        (attrNames config.pkgDefs));
+
+      # ownPkgs = l.filterAttrs (n: v: v != null) (
+      #   (l.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
+      # );
+      mkOwnPkgs = { pkgs, lib, ... }: l.filterAttrs (n: v: v != null) (
+        (l.mapAttrs (name: mkPkg: pkgs.callPackage mkPkg { }) ownPkgDefs)
+      );
+
+    in
+    {
+      # pkgs.extraPkgs.own = {
+      #   tools = extraInputs.tools.packages.${system} or { };
+      #   my-nix = ownPkgs;
+      # };
+      pkgs.overlays = [
+        (final: prev: { own = (prev.own or { }) // { tools = extraInputs.tools.packages.${system} or { }; }; })
+        (final: prev: { own = (prev.own or { }) // { my-nix = mkOwnPkgs { pkgs = final; lib = prev.lib; }; }; })
+      ];
+      expose.packages.own = {
+        tools = extraInputs.tools.packages.${system} or { };
+        # my-nix = ownPkgs;
       };
+    };
   };
 
   # let any module extend the flakeModule/perSystem lib arg
-  flakeModules.extraLib = { config, lib, flake-parts-lib, ... }: {
+  flakeModules.extraLib = { config, lib, flake-parts-lib, inputs, ... }: {
     imports = [
       # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
       (flake-parts-lib.mkTransposedPerSystemModule {
@@ -119,9 +143,9 @@
     # TODO nestedAttrs
     options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
     config = {
+      # TODO find a way to merge with global libs, preferably with a namespace
       _module.args.l = config.extraLib.deepMergeSetList [ lib config.extraLib ];
     };
-    # TODO find a way to merge with global libs, preferably with a namespace
 
     # TODO expose extraLib in flake outputs under lib
     # options.flake.lib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.str; default = { }; };
@@ -137,8 +161,17 @@
     };
   };
 
+  flakeModules.moduleTypes = { config, l, ... }: {
+    options.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
+    options.flake.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
+    config.flake.flakeModules = l.dbg4 (l.deepMergeSetList [
+      config.flakeModules
+      { utils.all.imports = attrValues config.flakeModules.utils; }
+    ]);
+  };
+
 in
 {
-  inherit flakeModules;
+  flakeModules.utils = flakeModules;
   imports = (attrValues flakeModules);
 }

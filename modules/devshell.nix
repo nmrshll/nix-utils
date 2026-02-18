@@ -1,6 +1,6 @@
 { ... }: with builtins; let
 
-  flakeModules.devshell = { lib, pkgs, options, ... }: {
+  flakeModules.devShell = { lib, pkgs, options, ... }: {
     perSystem = { lib, pkgs, config, options, ... }: {
       options = {
         devShellParts = {
@@ -33,7 +33,7 @@
 
 in
 {
-  inherit flakeModules;
+  flake.flakeModules = flakeModules;
   imports = (attrValues flakeModules);
 }
 

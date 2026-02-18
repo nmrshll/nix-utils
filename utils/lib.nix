@@ -1,19 +1,56 @@
-{ lib, l, ... }: with builtins; let
+with builtins; let
 
-  myLib = rec {
+  mkLib = { lib }: rec {
     dbgJSON = o: (trace (toJSON o) o);
     dbgAttrs = o: (trace (attrNames o) o);
-    fmt = v:
-      if isFunction v then "<function>"
-      else if isAttrs v then mapAttrs (_: fmt) v
-      else if isList v then map fmt v
-      else if isPath v then "${toString v}"
-      else v;
-    dbg = x: trace (fmt x) x;
+    # fmt = v:
+    #   if isFunction v then "<function>"
+    #   else if isAttrs v then mapAttrs (_: fmt) v
+    #   else if isList v then map fmt v
+    #   else if isPath v then "${toString v}"
+    #   else v;
+    # dbg = x: trace (fmt x) x;
+
+    # fmtDepth = d: v:
+    #   if d < 0 then "..."  # Stop here if we've gone too deep
+    #   else if isFunction v then lib.generators.toPretty { } v
+    #   else if isAttrs v then mapAttrs (_: fmtDepth (d - 1)) v
+    #   else if isList v then map (fmtDepth (d - 1)) v
+    #   else if isPath v then "${toString v}"
+    #   else v;
+    # dbg2 = x: trace (fmtDepth 4 x) x;
+
+    dbg2 = o: (lib.traceSeqN 2 o) o;
+    dbg3 = o: (lib.traceSeqN 3 o) o;
+    dbg4 = o: (lib.traceSeqN 4 o) o;
+    dbg5 = o: (lib.traceSeqN 5 o) o;
+
+    # traceSeqN = depth: x: y:
+    #   let
+    #     snip = v:
+    #       if isList v then noQuotes "[…]" v
+    #       else if isAttrs v then noQuotes "{…}" v
+    #       else v;
+    #     noQuotes = str: v: {
+    #       __pretty = lib.const str;
+    #       val = v;
+    #     };
+    #     modify = n: fn: v:
+    #       if (n == 0) then fn v
+    #       else if isList v then map (modify (n - 1) fn) v
+    #       else if isAttrs v then mapAttrs (lib.const (modify (n - 1) fn)) v
+    #       else v;
+    #   in
+    #   trace (lib.generators.toPretty { allowPrettyValues = true; } (modify depth snip x)) y;
 
 
     # TODO use mapAttrs ??
-    mapKeys = f: obj: listToAttrs (map (key: { name = f key; value = obj.${key}; }) (attrNames obj));
+    mapKeys = f: obj: listToAttrs (map
+      (key: {
+        name = f key;
+        value = obj.${key};
+      })
+      (attrNames obj));
     prefixKeys = prefix: obj: mapKeys (k: "${prefix}_${k}") obj;
 
     slugify = str: lib.toLower (replaceStrings [ " " ] [ "-" ] str);
@@ -21,11 +58,10 @@
     types = lib.types // {
       nestedAttrs = type: lib.types.lazyAttrsOf (lib.types.oneOf [
         type
-        (l.types.nestedAttrs type)
+        (types.nestedAttrs type)
       ]);
     };
 
-    # deepMergeSetList = foldl' lib.recursiveUpdate { };
     deepMergeSetList = listOfAttrs:
       lib.zipAttrsWith
         (name: values:
@@ -48,17 +84,24 @@
     flatListPkgs = set: attrValues (flatMapPkgs set);
   };
 
-  mkPkgsLib = { lib, pkgs, ... }: {
-    throwSystem = throw "Unsupported system: ${pkgs.stdenv.hostPlatform.system}";
-    forSystem = perSystemAttrs: perSystemAttrs.${pkgs.stdenv.hostPlatform.system} or throwSystem;
+  mkPkgsLib = { lib, system, ... }: {
+    throwSystem = throw "Unsupported system: ${system}";
+    forSystem = perSystemAttrs: perSystemAttrs.${system} or throwSystem;
+  };
+
+
+  flakeModules.myLib = { lib, ... }: {
+    extraLib = mkLib { lib = lib; };
+    perSystem = { system, lib, ... }: {
+      extraLib = mkLib { lib = lib; };
+      pkgs.extraLib = mkPkgsLib { inherit system; lib = lib; };
+    };
   };
 
 
 in
 {
-  extraLib = myLib;
-  perSystem = { pkgs, l, ... }: {
-    extraLib = myLib;
-    pkgs.extraLib = mkPkgsLib { inherit pkgs; lib = l; };
-  };
+  flakeModules.utils = flakeModules;
+  imports = (attrValues flakeModules);
 }
+

@@ -1,6 +1,6 @@
-{ l, ... }: with builtins; let
+with builtins; let
 
-  mkLibDarwin = { pkgs, ... }: {
+  mkLibDarwin = { pkgs, l, ... }: {
     installDmg = { version, url, sha256, appname, meta }: pkgs.stdenvNoCC.mkDerivation {
       inherit version;
       meta = meta // {
@@ -45,13 +45,13 @@
   };
 
   flakeModules.darwinPkgsLib = { ... }: {
-    config.perSystem = { l, pkgs, ... }: {
-      config.pkgs.extraLib.darwin = l.mkIf pkgs.stdenv.isDarwin (mkLibDarwin { inherit pkgs; });
+    config.perSystem = { system, pkgs, l, ... }: {
+      config.pkgs.extraLib.darwin = l.mkIf (l.hasInfix "darwin" system) (mkLibDarwin { inherit pkgs l; });
     };
   };
 
 in
 {
-  inherit flakeModules;
+  flakeModules.utils = flakeModules;
   imports = (attrValues flakeModules);
 }
