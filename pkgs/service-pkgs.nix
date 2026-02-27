@@ -111,4 +111,63 @@
       };
   };
 
+  pkgDefs.orbstack = rec {
+    versions = {
+      aarch64-darwin."1.11.3_19358".sha256 = "1p3qazha4q1ihqa4154jynp11kw9vqw4cyvpkdad4c9dcy9a6fzz";
+      aarch64-darwin."2.0.3_19876".sha256 = "03pjk4zvvpnxgnk3bnbaxri211ji4khgdl9f9pkiz0c46p9mrynw";
+    };
+    mkPkg = { pkgs, version ? "2.0.3_19876", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      with builtins; let
+        appname = "OrbStack";
+        arch = { aarch64-darwin = "arm64"; x86_64-darwin = "amd64"; }.${system} or throwSystem;
+      in
+      pkgs.stdenv.mkDerivation {
+        inherit version;
+        src = fetchurl {
+          url = "https://cdn-updates.orbstack.dev/${arch}/OrbStack_v${version}_${arch}.dmg";
+          sha256 = versions.${pkgs.system}.${version}.sha256;
+        };
+        pname = "orbstack";
+        nativeBuildInputs = [ pkgs.undmg ];
+        buildInputs = [ pkgs.unzip ];
+        unpackCmd = ''
+          echo "File to unpack: $curSrc"
+          # if ! [[ "$curSrc" =~ \.dmg$ ]]; then return 1; fi
+          mnt=$(mktemp -d -t ci-XXXXXXXXXX)
+
+          function finish {
+            echo "Detaching $mnt"
+            /usr/bin/hdiutil detach $mnt -force
+            rm -rf $mnt
+          }
+          trap finish EXIT
+
+          echo "Attaching $mnt"
+          /usr/bin/hdiutil attach -nobrowse -readonly $src -mountpoint $mnt
+
+          echo "What's in the mount dir"?
+          ls -la $mnt/
+
+          echo "Copying contents"
+          shopt -s extglob
+          DEST="$PWD"
+          (cd "$mnt"; cp -a !(Applications) "$DEST/")
+        '';
+        phases = [
+          "unpackPhase"
+          "installPhase"
+        ];
+        sourceRoot = "${appname}.app";
+        installPhase = ''
+          mkdir -p "$out/Applications/${appname}.app"
+          cp -a ./. "$out/Applications/${appname}.app/"
+        '';
+        meta = {
+          description = "Run Docker and Linux on your Mac seamlessly and efficiently.";
+          homepage = "https://orbstack.dev/";
+          platforms = [ "aarch64-darwin" ];
+        };
+      };
+  };
+
 }

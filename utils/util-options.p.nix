@@ -26,7 +26,7 @@ with builtins; let
         # inject into perSystem pkgs
         config._module.args.pkgs = import self.inputs.nixpkgs {
           inherit system;
-          overlays = config.pkgs.overlays; # TODO DEBUG HERE
+          overlays = config.pkgs.overlays;
           config = config.pkgs.nixpkgsConfig;
         };
       };
@@ -132,7 +132,7 @@ with builtins; let
   # let any module extend the flakeModule/perSystem lib arg
   flakeModules.extraLib = { config, lib, flake-parts-lib, inputs, ... }: {
     # imports = [
-    #   # TODO does this let other modules set config.lib ?? no, perSystem.config.lib ?? -> more like flake.lib.${system} ??
+    #   # TODO does this let other modules set flake.lib.${system} ??
     #   (flake-parts-lib.mkTransposedPerSystemModule {
     #     name = "lib";
     #     option = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };

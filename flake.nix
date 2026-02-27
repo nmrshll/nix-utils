@@ -27,9 +27,9 @@
         (import ./pkgs/service-pkgs.nix)
       ];
       utilsModules = [
-        (import ./utils/lib.nix)
-        (import ./utils/util-options.nix)
-        (import ./utils/lib.darwin.nix)
+        (import ./utils/lib.p.nix)
+        (import ./utils/util-options.p.nix)
+        (import ./utils/lib.darwin.p.nix)
       ];
 
 

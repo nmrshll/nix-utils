@@ -287,4 +287,24 @@
         '';
       };
   };
+
+  pkgDefs.launchd-ui = rec {
+    versions = {
+      aarch64-darwin."1.0.9".sha256 = "11a03f7a9f1e17685943ad243f08dc86337df1c5a19dc75062804e45d0c41272";
+    };
+    mkPkg = { pkgs, l, version ? "1.0.9", system ? pkgs.stdenv.hostPlatform.system, ... }:
+      let
+        url = "https://github.com/azu/launchd-ui/releases/download/v${version}/launchd-ui_${version}_aarch64.dmg";
+        sha256 = versions.${system}.${version}.sha256;
+      in
+      pkgs.lib.darwin.installDmg {
+        inherit url version sha256;
+        appname = "launchd-ui";
+        meta = {
+          source = "https://github.com/azu/launchd-ui";
+          description = "A GUI application for managing macOS launchd agents and daemons";
+          homepage = "https://github.com/azu/launchd-ui";
+        };
+      };
+  };
 }

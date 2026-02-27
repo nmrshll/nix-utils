@@ -22,7 +22,7 @@ with builtins; rec {
     };
     mkPkg = { pkgs, version ? "26_1_Apple_silicon", system ? pkgs.stdenv.hostPlatform.system, lib, ... }:
       let
-        xip = xcode-xip.mkPkg { inherit version pkgs system lib; };
+        xip = pkgDefs.xcode-xip.mkPkg { inherit version pkgs system lib; };
         xcode_app.versions = {
           "26_2_Apple_silicon".sha256 = "YxMVppJwRzTA6xWOILxVjLdl0bNmtZSifG/KQx6inRE=";
           "26_1_Apple_silicon".sha256 = "xFMknk3RxxJi/5IOb2mmw7vyC1xOaY5ZwCZ09AARtJU=";

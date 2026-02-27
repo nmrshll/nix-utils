@@ -1,4 +1,4 @@
-with builtins; let
+{ ctx ? { user = "me"; }, ... }: with builtins; let
 
   mkLib = { lib }: rec {
     dbgJSON = o: (trace (toJSON o) o);
@@ -9,7 +9,7 @@ with builtins; let
     dbg4 = o: (lib.traceSeqN 4 o) o;
     dbg5 = o: (lib.traceSeqN 5 o) o;
 
-
+    # SETS & LISTS
     # TODO use mapAttrs ??
     mapKeys = f: obj: listToAttrs (map
       (key: {
@@ -18,24 +18,6 @@ with builtins; let
       })
       (attrNames obj));
     prefixKeys = prefix: obj: mapKeys (k: "${prefix}_${k}") obj;
-
-    slugify = str: lib.toLower (replaceStrings [ " " ] [ "-" ] str);
-
-    findNixFilesRec = dir: lib.flatten (lib.mapAttrsToList
-      (name: type:
-        let path = "${toString dir}/${name}"; in
-        if type == "directory" then findNixFilesRec path  # Recursively call if it's a directory
-        else if type == "regular" && lib.hasSuffix ".nix" name then [ path ]  # Collect the path if it's a .nix file
-        else [ ]  # Ignore everything else
-      )
-      (builtins.readDir dir));
-
-    types = lib.types // {
-      nestedAttrs = type: lib.types.lazyAttrsOf (lib.types.oneOf [
-        type
-        (types.nestedAttrs type)
-      ]);
-    };
 
     deepMergeSetList = listOfAttrs:
       lib.zipAttrsWith
@@ -46,6 +28,25 @@ with builtins; let
         )
         listOfAttrs;
 
+    # remap keys and values at the same time. f: (k, v) -> (k', v'): mapAttrsToList then mergeRecursive
+    mapKvKv = f: obj: deepMergeSetList (lib.mapAttrsToList f obj);
+
+    attrsForEach = obj: f: deepMergeSetList (attrValues (lib.mapAttrs (k: v: f k v) obj));
+
+    # STRINGS
+    slugify = str: lib.toLower (replaceStrings [ " " ] [ "-" ] str);
+
+    # FILES
+    findNixFilesRec = dir: lib.flatten (lib.mapAttrsToList
+      (name: type:
+        let path = "${toString dir}/${name}"; in
+        if type == "directory" then findNixFilesRec path  # Recursively call if it's a directory
+        else if type == "regular" && lib.hasSuffix ".nix" name then [ path ]  # Collect the path if it's a .nix file
+        else [ ]  # Ignore everything else
+      )
+      (builtins.readDir dir));
+
+    # PACKAGES
     flatMapPkgs = set:
       let
         f = p: s: builtins.foldl' (a: b: a // b) { } (builtins.attrValues (builtins.mapAttrs
@@ -57,21 +58,39 @@ with builtins; let
       in
       f "" set;
     flatListPkgs = set: attrValues (flatMapPkgs set);
+    mapBins = mapAttrs (name: pkg: "${pkg}/bin/${name}");
+
+    # MODULES
+    hm_2_OS = v:
+      if typeOf v == "list" then { imports = (map hm_2_OS v); }
+      else if typeOf v == "lambda" then { home-manager.users.me = v; }
+      else throw "Invalid argument to hm_2_OS: ${toString v}";
+
+    types = lib.types // {
+      nestedAttrs = type: lib.types.lazyAttrsOf (lib.types.oneOf [
+        type
+        (types.nestedAttrs type)
+      ]);
+    };
+
+    constOpt = v: lib.mkOption { type = lib.types.unspecified; readOnly = true; default = v; };
   };
 
-  # TODO all lib should go in here
+  # TODO should all lib go in here ???? legacy nixpkgs way vs new way ???
   mkPkgsLib = { lib, pkgs ? null, system ? pkgs.hostPlatform.system, ... }: {
     throwSystem = throw "Unsupported system: ${system}";
     forSystem = perSystemAttrs: perSystemAttrs.${system} or throwSystem;
-  } /* // mkLib { lib = lib; } */;
+
+    mkScripts = mapAttrs (name: script: pkgs.writeShellScriptBin name script);
+    mapBins = mapAttrs (name: pkg: "${pkg}/bin/${name}");
+  };
 
 
   flakeModules.myLib = { lib, ... }: {
-
     config.extraLib = mkLib { lib = lib; };
-    config.perSystem = { system, lib, ... }: {
+    config.perSystem = { pkgs, system, lib, ... }: {
       extraLib = mkLib { lib = lib; };
-      pkgs.extraLib = mkPkgsLib { inherit system; lib = lib; };
+      pkgs.extraLib = mkPkgsLib { inherit pkgs system; lib = lib; };
     };
 
     # usual shape of lib: fn({finalPkgs,lib}) -> {attrs}
