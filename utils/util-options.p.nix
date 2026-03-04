@@ -141,10 +141,21 @@ with builtins; let
 
 
     # TODO nestedAttrs
-    options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+    options.extraLib = lib.mkOption {
+      type = lib.types.anything // {
+        merge = loc: defs:
+          let
+            values = lib.getValues defs;
+            baseLib = (import ./lib.p.nix { inherit lib; }).extraLib;
+          in
+          baseLib.deepMergeSetList ([ lib ] ++ values);
+      };
+      default = { };
+    };
     config = {
       # TODO find a way to merge with global libs, preferably with a namespace
-      _module.args.l = config.extraLib.deepMergeSetList [ lib config.extraLib ];
+      # Use the merged option value directly to avoid manual merging logic here
+      _module.args.l = config.extraLib;
     };
 
     # TODO expose extraLib in flake outputs under lib
@@ -153,9 +164,19 @@ with builtins; let
 
     config.perSystem = { config, lib, pkgs, ... }: {
       # _module.args.lib = lib // config.lib;
-      options.extraLib = lib.mkOption { type = lib.types.lazyAttrsOf lib.types.unspecified; default = { }; };
+      options.extraLib = lib.mkOption {
+        type = lib.types.anything // {
+          merge = loc: defs:
+            let
+              values = lib.getValues defs;
+              baseLib = (import ./lib.p.nix { inherit lib; }).extraLib;
+            in
+            baseLib.deepMergeSetList ([ lib ] ++ values);
+        };
+        default = { };
+      };
       config = {
-        _module.args.l = config.extraLib.deepMergeSetList [ lib config.extraLib ];
+        _module.args.l = config.extraLib;
       };
       # config.bin = config.bin;
     };

@@ -35,9 +35,9 @@ part@{ self, config, pkgs, inputs, ... }: {
           pname = crateToml.package.name;
           version = crateToml.package.version;
           cargoExtraArgs = "-p ${pname}";
-          src = l.fileset.toSource {
+          src = lib.fileset.toSource {
             root = (/. + builtins.unsafeDiscardStringContext self.outPath);
-            fileset = l.fileset.unions [
+            fileset = lib.fileset.unions [
               (craneLib.fileset.commonCargoSources (relPath "/${path}"))
               (relPath "/Cargo.toml")
               (relPath "/Cargo.lock")
@@ -53,10 +53,10 @@ part@{ self, config, pkgs, inputs, ... }: {
         if pathExists (self.outPath + "/Cargo.toml") then (fromTOML (readFile (self.outPath + "/Cargo.toml"))).workspace.members or [ ]
         else [ ];
       expandWsMember = member:
-        if l.strings.hasSuffix "/*" member then
+        if lib.hasSuffix "/*" member then
           let
-            baseDir = l.strings.removeSuffix "/*" member;
-            subDirs = l.filterAttrs (name: type: type == "directory") (readDir (self.outPath + "/${baseDir}"));
+            baseDir = lib.removeSuffix "/*" member;
+            subDirs = lib.filterAttrs (name: type: type == "directory") (readDir (self.outPath + "/${baseDir}"));
           in
           map (name: "${baseDir}/${name}") (attrNames subDirs)
         else
@@ -65,7 +65,7 @@ part@{ self, config, pkgs, inputs, ... }: {
       validCratePaths = filter (crate: pathExists (relPath "/${crate}/Cargo.toml")) (concatLists (map expandWsMember workspaceMembers));
       crates = listToAttrs (map (path: { name = baseNameOf path; value = buildCrate path; }) validCratePaths);
 
-      tests = l.optionalAttrs (pathExists (self.outPath + "/Cargo.toml")) {
+      tests = lib.optionalAttrs (pathExists (self.outPath + "/Cargo.toml")) {
         clippy = craneLib.cargoClippy (commonArgs // {
           inherit cargoArtifacts;
           cargoClippyExtraArgs = "--all-targets -- --deny warnings";
@@ -74,7 +74,7 @@ part@{ self, config, pkgs, inputs, ... }: {
 
 
       wd = "$(git rev-parse --show-toplevel)";
-      scripts = l.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+      scripts = lib.mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
         fix-fmt = ''
           cargo fmt --all --
           cargo clippy --fix
