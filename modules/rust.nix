@@ -1,5 +1,5 @@
 thisFlake:
-{ self, pkgs, inputs, ... }: {
+part@{ self, config, pkgs, inputs, ... }: {
   perSystem = { pkgs, config, l, lib, ... }:
     with builtins; let
       bin = mapAttrs (n: pkg: "${pkg}/bin/${n}") (scripts // { inherit (pkgs); });
@@ -8,7 +8,7 @@ thisFlake:
         extensions = [ "rust-src" "rust-analyzer" ];
         targets = [ ];
       };
-      craneLib = thisFlake.inputs.crane.mkLib pkgs;
+      craneLib = part.config.flakeInputsOf.my-nix.crane.mkLib pkgs;
 
       buildInputs = config.rust.buildInputs ++ [
         customRust
@@ -138,9 +138,9 @@ thisFlake:
 
         devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);
         devShellParts.env = env;
-        devShellParts.shellHookParts.de = ''
-          comm -13 <(echo "$nativeBuildInputs" | tr ' ' '\n' | sort) <(echo "$PATH" | tr ':' '\n' | sort) | grep "/nix/store" 
-        '';
+        # devShellParts.shellHookParts.de = ''
+        #   comm -13 <(echo "$nativeBuildInputs" | tr ' ' '\n' | sort) <(echo "$PATH" | tr ':' '\n' | sort) | grep "/nix/store" 
+        # '';
         extraLib = { inherit craneLib; customRust = { inherit buildCrate; }; };
 
         vscode.settings = {

@@ -1,4 +1,4 @@
-{ ctx ? { user = "me"; }, ... }: with builtins; let
+{ ctx ? { user = "me"; }, lib, ... }: with builtins; let
 
   mkLib = { lib }: rec {
     dbgJSON = o: (trace (toJSON o) o);
@@ -37,14 +37,27 @@
     slugify = str: lib.toLower (replaceStrings [ " " ] [ "-" ] str);
 
     # FILES
-    findNixFilesRec = dir: lib.flatten (lib.mapAttrsToList
+    # findNixFilesRec = dir: lib.flatten (lib.mapAttrsToList
+    #   (name: type:
+    #     let path = "${toString dir}/${name}"; in
+    #     if type == "directory" then findNixFilesRec path  # Recursively call if it's a directory
+    #     else if type == "regular" && lib.hasSuffix ".nix" name then [ path ]  # Collect the path if it's a .nix file
+    #     else [ ]  # Ignore everything else
+    #   )
+    #   (builtins.readDir dir));
+
+    # filter is a function of (path) -> bool
+    findFilesRec = filter: dir: lib.flatten (lib.mapAttrsToList
       (name: type:
         let path = "${toString dir}/${name}"; in
-        if type == "directory" then findNixFilesRec path  # Recursively call if it's a directory
-        else if type == "regular" && lib.hasSuffix ".nix" name then [ path ]  # Collect the path if it's a .nix file
-        else [ ]  # Ignore everything else
+        if type == "directory" then findFilesRec filter path
+        else if filter path then [ path ]
+        else [ ]
       )
       (builtins.readDir dir));
+    findFlakePartFilesRec = findFilesRec (lib.hasSuffix ".p.nix");
+    findNixFilesRec = findFilesRec (lib.hasSuffix ".nix");
+
 
     # PACKAGES
     flatMapPkgs = set:
@@ -102,6 +115,8 @@
 
 in
 {
+  # options._internal = lib.mkOption { type = lib.types.unspecified; default = { lib = mkLib { lib = lib; }; }; readOnly = true; };
+  extraLib = mkLib { lib = lib; };
   flake.flakeModules.utils = flakeModules;
   imports = (attrValues flakeModules);
 }
