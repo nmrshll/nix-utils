@@ -11,15 +11,15 @@
     with builtins; let
       l = (import ./utils/lib.p.nix { lib = lib; }).extraLib;
 
-      # NOTE: importApply injects thisFlake into module args (to distinguish from caller flake)
-      flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
-        cli-tools = ./modules/cli-tools.nix;
-        git = ./modules/git.nix;
-        editors = ./modules/editors.nix;
-        services = ./modules/services.nix;
-        rust = ./modules/rust.nix;
-        devshell = ./modules/devshell.nix;
-      };
+      # # NOTE: importApply injects thisFlake into module args (to distinguish from caller flake)
+      # flakeModules = mapAttrs (n: file: flake-parts-lib.importApply file { inherit inputs; }) {
+      #   cli-tools = ./modules/cli-tools.nix;
+      #   git = ./modules/git.nix;
+      #   editors = ./modules/editors.nix;
+      #   services = ./modules/services.nix;
+      #   rust = ./modules/rust.nix;
+      #   devshell = ./modules/devshell.nix;
+      # };
       # pkgModules = [
       #   (import ./pkgs/cli-pkgs.nix)
       #   (import ./pkgs/editor-pkgs.nix)
@@ -27,19 +27,19 @@
       #   (import ./pkgs/libs-pkgs.nix)
       #   (import ./pkgs/service-pkgs.nix)
       # ];
-      pkgModules = lib.flatten (map (dir: l.findNixFilesRec dir) [ ./pkgs ]);
-      utilsModules = [
-        (import ./utils/lib.p.nix)
-        (import ./utils/util-options.p.nix)
-        (import ./utils/lib.darwin.p.nix)
-      ];
+      parts = lib.flatten (map (dir: l.findNixFilesRec dir) [ ./pkgs ./utils ./modules ]);
+      # utilsModules = [
+      #   (import ./utils/lib.p.nix)
+      #   (import ./utils/util-options.p.nix)
+      #   (import ./utils/lib.darwin.p.nix)
+      # ];
 
 
     in
     {
       debug = true;
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
-      imports = (attrValues flakeModules) ++ pkgModules ++ utilsModules ++ [{
+      imports = parts ++ [{
         options.flakeInputsOf.my-nix = l.constOpt inputs;
       }];
 
@@ -47,7 +47,7 @@
         # packages = l.flatListPkgs config.expose.packages;
       };
 
-      flake.flakeModules = flakeModules // {
+      flake.flakeModules = {
         utils.exposeInputs = { ... }: {
           options.flakeInputsOf.my-nix = l.constOpt (l.dbg2 inputs);
         };

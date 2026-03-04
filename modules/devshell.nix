@@ -1,4 +1,4 @@
-{ ... }: with builtins; let
+with builtins; let
 
   flakeModules.devShell = { lib, pkgs, options, ... }: {
     perSystem = { lib, pkgs, config, options, ... }: {

@@ -1,4 +1,4 @@
-thisFlake:
+# thisFlake:
 { self, config, pkgs, ... }: with builtins; let
   flakeModules.cli-tools = {
     perSystem = { config, pkgs, lib, ... }:

@@ -1,4 +1,4 @@
-{ l }:
+{ l, ... }:
 let
   tests.flatMapPkgs = {
     simple = {

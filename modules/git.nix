@@ -1,23 +1,23 @@
-thisFlake:
-{ config, pkgs, ... }:
-{
-  perSystem = { config, pkgs, lib, ... }:
-    with builtins; let
-      # l = lib // builtins;
-      # sh_use_dbg = ''dbg_var() {  local var_name="$1";  if [ -n "''${!var_name}" ]; then  echo "$var_name=''${!var_name}";  else echo "DBG_VAR: $var_name is not set or is empty"; fi  }'';
+# thisFlake:
+with builtins; let
+  flakeModules.git = { config, pkgs, ... }: {
+    perSystem = { config, pkgs, lib, ... }:
+      with builtins; let
+        # l = lib // builtins;
+        # sh_use_dbg = ''dbg_var() {  local var_name="$1";  if [ -n "''${!var_name}" ]; then  echo "$var_name=''${!var_name}";  else echo "DBG_VAR: $var_name is not set or is empty"; fi  }'';
 
-      wd = "$(git rev-parse --show-toplevel)";
-      scripts = mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
-        remote-name = ''
-          NB_REMOTES="$(git -C "${wd}" remote | wc -l | tr -d '[:space:]')"
-          if [ $NB_REMOTES -eq 1 ]; then
-            CURRENT_REMOTE="$(git -C "${wd}" remote | tr -d '[:space:]')";
-          else
-            >&2 echo "[ERROR]: no unique origin remote"; exit 1
-          fi
-          dbg_var CURRENT_REMOTE
-        '';
-        autorebase = ''set -euxo pipefail
+        wd = "$(git rev-parse --show-toplevel)";
+        scripts = mapAttrs (n: t: pkgs.writeShellScriptBin n t) {
+          remote-name = ''
+            NB_REMOTES="$(git -C "${wd}" remote | wc -l | tr -d '[:space:]')"
+            if [ $NB_REMOTES -eq 1 ]; then
+              CURRENT_REMOTE="$(git -C "${wd}" remote | tr -d '[:space:]')";
+            else
+              >&2 echo "[ERROR]: no unique origin remote"; exit 1
+            fi
+            dbg_var CURRENT_REMOTE
+          '';
+          autorebase = ''set -euxo pipefail
               # This script will automatically rebase your branch onto main, by doing:
               #  - backup your current branch
               #  - pull latest changes on main
@@ -78,7 +78,7 @@ thisFlake:
 
               git rebase "''${TARGET_BRANCH}"
             '';
-        gupdate = ''set -x
+          gupdate = ''set -x
               REPO_PATH=$(git rev-parse --show-toplevel)
               REMOTE_NAME=$(
                 NB_REMOTES=$(git -C "$REPO_PATH" remote | wc -l | tr -d '[:space:]')
@@ -115,14 +115,20 @@ thisFlake:
               git merge --no-edit "$REMOTE_NAME/$MAIN_REMOTE_BRANCH" || exit 1
             '';
 
-        git-unsee = ''
-          # git add --intent-to-add "$@"
-          git update-index --assume-unchanged "$@"
-        '';
-      };
+          git-unsee = ''
+            # git add --intent-to-add "$@"
+            git update-index --assume-unchanged "$@"
+          '';
+        };
 
-    in
-    {
-      expose.packages = scripts;
-    };
+      in
+      {
+        expose.packages = scripts;
+      };
+  };
+
+in
+{
+  flake.flakeModules = flakeModules;
+  imports = (attrValues flakeModules);
 }
