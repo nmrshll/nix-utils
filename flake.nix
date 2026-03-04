@@ -40,10 +40,11 @@
       imports = (attrValues flakeModules) ++ pkgModules ++ utilsModules;
 
       perSystem = { pkgs, config, l, ... }: {
-        packages = l.flatMapPkgs config.expose.packages;
+        # packages = l.flatListPkgs config.expose.packages;
       };
 
-      # flake.flakeModules = flakeModules // { utils = utilsModules.all; };
+      flake.flakeModules = flakeModules; # expose to consumers
+      # inherit flakeModules; # expose to flake-parts recursive evaluation
     });
 }
 

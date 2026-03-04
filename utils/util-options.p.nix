@@ -10,18 +10,17 @@ with builtins; let
         options.pkgs.nixpkgsConfig = l.mkOption { type = l.types.unspecified; default = { }; };
         # let any module add to pkgs.lib.X perSystem arg
         options.pkgs.extraLib = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
+        options.pkgs.extraBin = l.mkOption { type = l.types.nestedAttrs l.types.str; default = { }; };
 
         config.pkgs.overlays = [
-          (final: prev: { lib = l.deepMergeSetList [ prev.lib config.pkgs.extraLib ]; })
-          (final: prev: { extraPkgs = l.deepMergeSetList [ (final.extraPkgs or { }) config.pkgs.extraPkgs ]; })
+          (final: prev: { lib = l.deepMergeSetList [ (prev.lib or { }) config.pkgs.extraLib ]; })
+          (final: prev: { bin = l.deepMergeSetList [ (prev.bin or { }) config.pkgs.extraBin ]; })
+          (final: prev: { extraPkgs = l.deepMergeSetList [ (prev.extraPkgs or { }) config.pkgs.extraPkgs ]; })
         ]; /* TODO: here we could cycle through extraPkgs and gen 1 overlay per key */
-        config.pkgs.nixpkgsConfig = {
-          allowUnfree = true;
-          # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "terraform" ];
-        };
-        # DEPRECATED -> this is already perSys.pkgs
-        # make finalPkgs read-only for other modules (e.g. to inject into hmModule / darwinModule)
-        # options.pkgs.finalPkgs = l.mkOption { default = finalPkgs; readOnly = true; type = l.types.nestedAttrs l.types.package; };
+
+        config.pkgs.nixpkgsConfig.allowUnfree = true;
+        # config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "terraform" ];
+
 
         # inject into perSystem pkgs
         config._module.args.pkgs = import self.inputs.nixpkgs {
@@ -123,7 +122,7 @@ with builtins; let
         (final: prev: { own = (prev.own or { }) // { my-nix = mkOwnPkgs { pkgs = final; lib = prev.lib; }; }; })
       ];
       expose.packages.own = {
-        tools = extraInputs.tools.packages.${system} or { };
+        # tools = extraInputs.tools.packages.${system} or { };
         # my-nix = ownPkgs;
       };
     };
@@ -163,16 +162,16 @@ with builtins; let
   };
 
   flakeModules.moduleTypes = { config, l, ... }: {
-    options.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
-    options.flake.flakeModules = l.mkOption { type = l.types.nestedAttrs l.types.unspecified; default = { }; };
-    config.flake.flakeModules = (l.deepMergeSetList [
-      config.flakeModules
-      { utils.all.imports = attrValues config.flakeModules.utils; }
-    ]);
+    # options.flakeModules = l.mkOption { type = l.types.lazyAttrsOf l.types.unspecified; default = { }; };
+    options.flake.flakeModules = l.mkOption { type = l.types.lazyAttrsOf l.types.unspecified; default = { }; };
+    # config.flake.flakeModules = (l.deepMergeSetList [
+    #   config.flakeModules
+    #   # { utils.all.imports = attrValues config.flakeModules.utils; }
+    # ]);
   };
 
 in
 {
-  flakeModules.utils = flakeModules;
+  flake.flakeModules.utils = flakeModules;
   imports = (attrValues flakeModules);
 }

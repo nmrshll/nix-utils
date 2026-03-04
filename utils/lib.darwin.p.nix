@@ -52,6 +52,6 @@ with builtins; let
 
 in
 {
-  flakeModules.utils = flakeModules;
+  flake.flakeModules.utils = flakeModules;
   imports = (attrValues flakeModules);
 }

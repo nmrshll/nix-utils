@@ -92,7 +92,7 @@ thisFlake:
         '';
         cargo-newbin = ''if [ "$1" = "newbin" ]; then shift; fi; cargo new --bin "$1" --vcs none'';
         cargo-newlib = ''if [ "$1" = "newlib" ]; then shift; fi; cargo new --lib "$1" --vcs none'';
-        cwadd = ''${pkgs.own.tools.cargo-wadd}/bin/cargo-wadd $@'';
+        # cwadd = ''${pkgs.own.tools.cargo-wadd}/bin/cargo-wadd $@'';
         cadd = ''cargo add $(packages) $@'';
 
         build = ''nix build . --show-trace '';
@@ -104,6 +104,8 @@ thisFlake:
         utest = ''set -x; cargo nextest run $(packages) --nocapture "$@" -- $SINGLE_TEST '';
         packages = ''if [ -n "$CURRENT_CRATE" ]; then echo "-p $CURRENT_CRATE"; else echo "--workspace"; fi '';
         ptest = ''package="$1"; shift; cargo nextest run -p "$package" --nocapture "$@" -- "$SINGLE_TEST" '';
+        # penv = ''printf "%s\n" "${toJSON config.devShells.default.shellHook}" '';
+        de = ''printf "%s\n" "${pkgs.pkg-config}" '';
       };
 
       env = {
@@ -118,7 +120,7 @@ thisFlake:
       options.rust.toolchain = l.mkOption { type = l.types.package; default = customRust; };
       options.rust.buildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
       options.rust.nativeBuildInputs = l.mkOption { type = l.types.listOf l.types.package; default = [ ]; };
-      options.rust.buildEnv = l.mkOption { type = l.types.attrsOf l.types.string; default = { }; };
+      options.rust.buildEnv = l.mkOption { type = l.types.attrsOf l.types.str; default = { }; };
       # Internal options
       options.rust.crates = l.mkOption { type = l.types.nestedAttrs l.types.package; default = { }; readOnly = true; };
 
@@ -136,6 +138,9 @@ thisFlake:
 
         devShellParts.buildInputs = buildInputs ++ devInputs ++ (attrValues scripts);
         devShellParts.env = env;
+        devShellParts.shellHookParts.de = ''
+          comm -13 <(echo "$nativeBuildInputs" | tr ' ' '\n' | sort) <(echo "$PATH" | tr ':' '\n' | sort) | grep "/nix/store" 
+        '';
         extraLib = { inherit craneLib; customRust = { inherit buildCrate; }; };
 
         vscode.settings = {
@@ -145,7 +150,7 @@ thisFlake:
             RUSTFMT = "${config.rust.toolchain}/bin/rustfmt";
             # SQLX_OFFLINE = 1;
             # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
-          };
+          } // config.rust.buildEnv;
           "rust-analyzer.server.path" = "${config.rust.toolchain}/bin/rust-analyzer";
           "rust-analyzer.runnables.command" = "${config.rust.toolchain}/bin/cargo";
           "rust-analyzer.runnables.extraEnv" = {
@@ -154,7 +159,7 @@ thisFlake:
             RUSTFMT = "${config.rust.toolchain}/bin/rustfmt";
             # SQLX_OFFLINE = 1;
             # RUSTFLAGS = env.RUST_BACKTRACE; # Assuming RUSTFLAGS refers to the RUST_BACKTRACE from the env block
-          };
+          } // config.rust.buildEnv;
         };
       };
     };
