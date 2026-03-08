@@ -32,7 +32,8 @@ with builtins; let
         perCrateArgs = path:
           let crateToml = fromTOML (readFile (self.outPath + "/${path}/Cargo.toml"));
           in rec {
-            inherit cargoArtifacts;
+            inherit cargoArtifacts buildInputs;
+            inherit (config.rust) nativeBuildInputs;
             pname = crateToml.package.name;
             version = crateToml.package.version;
             cargoExtraArgs = "-p ${pname}";
