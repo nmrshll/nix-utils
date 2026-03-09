@@ -3,10 +3,11 @@
   inputs.fp.url = "github:hercules-ci/flake-parts";
   inputs.rust-overlay = { url = "github:oxalica/rust-overlay"; inputs.nixpkgs.follows = "nixpkgs"; };
   inputs.crane = { url = "github:ipetkov/crane"; };
-  inputs.tools.url = "git+ssh://git@gitlab.com/nmrshll/tools.git";
+  inputs.tools = { url = "git+ssh://git@gitlab.com/nmrshll/tools.git"; inputs.nixpkgs.follows = "nixpkgs"; inputs.parts.follows = "fp"; inputs.my-nix.follows = "/"; };
 
   nixConfig.experimental-features = [ "flakes" "nix-command" ];
   nixConfig.allow-unsafe-native-code-during-evaluation = true;
+  nixConfig.allow-import-from-derivation = true;
 
   outputs = inputs@{ fp, ... }: fp.lib.mkFlake { inherit inputs; } ({ flake-parts-lib, lib, ... }: with builtins; let
     l = (import ./utils/lib.p.nix { lib = lib; }).extraLib;
