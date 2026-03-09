@@ -24,4 +24,22 @@ with builtins; {
       };
   };
 
+  pkgDefs.leveldb-viewer = rec {
+    versions = {
+      "master".sha256 = "sha256-0000000000000000000000000000000000000000000=";
+    };
+    mkPkg = { pkgs, version ? "master", ... }:
+      pkgs.buildGoModule {
+        pname = "leveldb-viewer";
+        inherit version;
+
+        src = pkgs.fetchFromGitHub {
+          owner = "arkantos1482";
+          repo = "leveldb-viewer";
+          rev = version;
+          sha256 = versions.${version}.sha256;
+        };
+      };
+  };
+
 }

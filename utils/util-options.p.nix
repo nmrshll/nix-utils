@@ -53,7 +53,7 @@ with builtins; let
   # };
 
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
-  flakeModules.ownPkgs = { config, self, l, ... }: {
+  flakeModules.ownPkgs = { config, inputs, l, ... }: {
     options.pkgDefs = l.mkOption { type = l.types.unspecified; default = { }; };
     # TODO: use findNixFilesRec
     imports = [
@@ -65,24 +65,19 @@ with builtins; let
     ];
 
     config.perSystem = { pkgs, l, lib, system, ... }: with builtins; let
-      # Note: this was for collecting module files
-      # TODO replace with findNixFilesRec in lib (and use from flake.nix)
-      # pkgsFiles = lib.filter (name: lib.hasSuffix ".nix" name) (builtins.attrNames (builtins.readDir ../pkgs));
-      # # (/. + builtins.unsafeDiscardStringContext self.outPath)
-      # ownPkgDefs = lib.foldl' lib.recursiveUpdate { } (lib.map (name: import (builtins.unsafeDiscardStringContext ("../pkgs/" + name))) pkgsFiles);
 
-      # TODO figure out env-based overrides
-      mkExtraInput = overridePath: defaultSrc:
-        if overridePath != "" && pathExists overridePath
-        then (getFlake overridePath)
-        else getFlake defaultSrc;
+      # # TODO figure out env-based overrides
+      # mkExtraInput = overridePath: defaultSrc:
+      #   if overridePath != "" && pathExists overridePath
+      #   then (getFlake overridePath)
+      #   else getFlake defaultSrc;
 
-      extraInputs =
-        let tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
-        in {
-          # TODO use PAT in URL/env for private repos
-          tools = getFlake ("/Users/me/src/me/tools");
-        };
+      # extraInputs =
+      #   let tools = mkExtraInput (getEnv "OVERRIDE_INPUT_TOOLS") "https://gitlab.com/nmrshll/tools.git";
+      #   in {
+      #     # TODO use PAT in URL/env for private repos
+      #     tools = getFlake ("/Users/me/src/me/tools");
+      #   };
 
       # collect packages indexed by name & version
       ownPkgDefs = foldl' (a: b: deepSeq b (a // b)) { } (map
@@ -113,17 +108,13 @@ with builtins; let
 
     in
     {
-      # pkgs.extraPkgs.own = {
-      #   tools = extraInputs.tools.packages.${system} or { };
-      #   my-nix = ownPkgs;
-      # };
       pkgs.overlays = [
-        (final: prev: { own = (prev.own or { }) // { tools = extraInputs.tools.packages.${system} or { }; }; })
+        (final: prev: { own = (prev.own or { }) // { tools = inputs.tools.packages.${system} or { }; }; })
         (final: prev: { own = (prev.own or { }) // { my-nix = mkOwnPkgs { pkgs = final; lib = prev.lib; }; }; })
       ];
       expose.packages.own = {
-        # tools = extraInputs.tools.packages.${system} or { };
-        # my-nix = ownPkgs;
+        tools = inputs.tools.packages.${system} or { };
+        my-nix = mkOwnPkgs { pkgs = pkgs; lib = l; };
       };
     };
   };
