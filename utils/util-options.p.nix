@@ -53,7 +53,7 @@ with builtins; let
   # };
 
   # This exposes ownPkgs in flake outputs AND as a perSystem module argument (collected from pkgs/ )
-  flakeModules.ownPkgs = { config, inputs, l, ... }: {
+  flakeModules.ownPkgs = { config, l, ... }: {
     options.pkgDefs = l.mkOption { type = l.types.unspecified; default = { }; };
     # TODO: use findNixFilesRec
     imports = [
@@ -64,7 +64,7 @@ with builtins; let
       ../pkgs/service-pkgs.nix
     ];
 
-    config.perSystem = { pkgs, l, lib, system, ... }: with builtins; let
+    config.perSystem = { pkgs, l, lib, inputs', system, ... }: with builtins; let
 
       # # TODO figure out env-based overrides
       # mkExtraInput = overridePath: defaultSrc:
@@ -109,11 +109,12 @@ with builtins; let
     in
     {
       pkgs.overlays = [
-        (final: prev: { own = (prev.own or { }) // { tools = inputs.tools.packages.${system} or { }; }; })
+        # (final: prev: { own = (prev.own or { }) // { tools = (l.dbg3 inputs.tools.packages).${system} or { }; }; })
+        (final: prev: { own.tools = inputs'.tools.packages; })
         (final: prev: { own = (prev.own or { }) // { my-nix = mkOwnPkgs { pkgs = final; lib = prev.lib; }; }; })
       ];
       expose.packages.own = {
-        tools = inputs.tools.packages.${system} or { };
+        tools = inputs'.tools.packages or { };
         my-nix = mkOwnPkgs { pkgs = pkgs; lib = l; };
       };
     };
